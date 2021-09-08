@@ -20,7 +20,7 @@ namespace NesEmu.Rom {
         }
 
         public ushort Get() {
-            return (byte)((Value.Hi << 8) | Value.Lo);
+            return (ushort)((Value.Hi << 8) | Value.Lo);
         }
 
         public void Update(byte data) {
