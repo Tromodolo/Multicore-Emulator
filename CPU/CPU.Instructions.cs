@@ -869,7 +869,7 @@ namespace NesEmu.CPU {
             if ((six && five) || (six && !five)) {
                 SetStatusFlag(Flags.Carry);
                 ClearStatusFlag(Flags.Overflow);
-            } else {
+            } else if((!six && !five) || (!six && five)) {
                 SetStatusFlag(Flags.Overflow);
                 ClearStatusFlag(Flags.Carry);
             }
@@ -998,7 +998,7 @@ namespace NesEmu.CPU {
             var (address, _) = GetOperandAddress(mode);
             var value = MemRead(address);
 
-            var result = (byte)(RegisterX & ((value & 0b11110000) + 1));
+            var result = (byte)(RegisterX & (value & 0b11110000 + 1));
             MemWrite(address, result);
         }
 
@@ -1006,7 +1006,7 @@ namespace NesEmu.CPU {
             var (address, _) = GetOperandAddress(mode);
             var value = MemRead(address);
 
-            var result = (byte)(RegisterY & ((value & 0b11110000) + 1));
+            var result = (byte)(RegisterY & (value & 0b11110000 + 1));
             MemWrite(address, result);
         }
     }
