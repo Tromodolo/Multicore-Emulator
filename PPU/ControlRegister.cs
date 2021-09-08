@@ -34,7 +34,7 @@ namespace NesEmu.Rom {
         }
 
         public ushort GetBackgroundPatternAddr() {
-            if (Status.HasFlag(ControlRegisterStatus.VramAddIncrement)) {
+            if (Status.HasFlag(ControlRegisterStatus.BackgroundPatternAddr)) {
                 return 0x1000;
             } else {
                 return 0;
@@ -42,7 +42,7 @@ namespace NesEmu.Rom {
         }
 
         public ushort GetSpritePatternAddr() {
-            if (Status.HasFlag(ControlRegisterStatus.VramAddIncrement)) {
+            if (Status.HasFlag(ControlRegisterStatus.SpritePatternAddr)) {
                 return 0x1000;
             } else {
                 return 0;
