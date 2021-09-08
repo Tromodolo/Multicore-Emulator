@@ -411,6 +411,8 @@ namespace NesEmu.CPU {
 
             }
 
+            Bus.TickPPUCycles(op.NumCycles);
+
             if (ProgramCounter == PCCopy) {
                 ProgramCounter += (ushort)(op.NumBytes - 1);
             }
