@@ -11,6 +11,7 @@ using osu.Framework.Platform;
 using osuTK;
 using osuTK.Graphics;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using System.Threading;
@@ -57,22 +58,41 @@ namespace NesEmu {
         private void _ExecuteCPU() {
             File.Delete($"log-{fileName}.log");
             var logFile = File.OpenWrite($"log-{fileName}.log");
+            string[] stringBuffer = new string[256];
+            byte bufferIdx = 0;
             try {
+                int frameCount = 0;
+                Stopwatch watch = new Stopwatch();
+                watch.Start();
+
                 while (cpu.Running) {
                     if (!isInit) {
                         Thread.Sleep(100);
                         continue;
                     }
-                    var trace = Trace.Log(cpu);
+
+                    if (cpu.ProgramCounter >= 60000) {
+                        var trace = Trace.Log(cpu);
+                        stringBuffer[bufferIdx] = trace;
+                        bufferIdx++;
+                    }
                     cpu.ExecuteNextInstruction();
-                    logFile.Write(Encoding.UTF8.GetBytes(trace));
 
                     if (cpu.Bus.GetDrawFrame()) {
+                        frameCount++;
                         RenderFrame(cpu.Bus.PPU);
+                        if (frameCount % 60 == 0) {
+                            Console.WriteLine("Average {0} fps", frameCount / watch.Elapsed.TotalSeconds);
+                        }
                     }
                 }
                 logFile.Close();
             } catch (Exception e) {
+                foreach (var s in stringBuffer) {
+                    if (s != null) {
+                        logFile.Write(Encoding.UTF8.GetBytes(s));
+                    }
+                }
                 logFile.Close();
             }
         }
