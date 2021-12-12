@@ -141,7 +141,7 @@ namespace NesEmu.CPU {
 
             var flags = Status;
             flags |= Flags.Break;
-            flags |= Flags.Break2;
+            flags &= ~Flags.Break2;
             StackPush((byte)flags);
 
             SetStatusFlag(Flags.InterruptDisable);
@@ -163,15 +163,15 @@ namespace NesEmu.CPU {
         }
 
         void HandleInstruction(OpCode op) {
-            var mode = op.Mode;
-            ushort PCCopy = ProgramCounter;
-
             InstructionCount++;
 
             if (Bus.GetNmiStatus()) {
                 NmiInterrupt();
             }
 
+            ProgramCounter++;
+            var mode = op.Mode;
+            ushort PCCopy = ProgramCounter;
 
             switch (op.Name) {
                 case "NOP":

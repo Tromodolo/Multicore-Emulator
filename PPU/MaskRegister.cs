@@ -8,7 +8,7 @@ namespace NesEmu.PPU {
     [Flags]
     public enum MaskRegisterStatus {
         Empty                       = 0,
-        Greyyscale                  = 1,
+        Greyscale                   = 1,
         BackgroundLeftColumnEnable  = 1 << 1,
         SpriteLeftColumnEnable      = 1 << 2,
         BackgroundEnable            = 1 << 3,
@@ -32,7 +32,7 @@ namespace NesEmu.PPU {
         }
 
         public bool GetGreyscale() {
-            return Status.HasFlag(MaskRegisterStatus.Greyyscale);
+            return Status.HasFlag(MaskRegisterStatus.Greyscale);
         }
         public bool GetBackgroundLeftColumn() {
             return Status.HasFlag(MaskRegisterStatus.BackgroundLeftColumnEnable);

@@ -17,6 +17,12 @@
     <None Update="pacman.nes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="smb.nes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="zelda.nes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

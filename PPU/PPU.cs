@@ -85,6 +85,7 @@ namespace NesEmu.PPU {
                     if (nametable is 1 or 2) {
                         nameTableAddr -= 0x400;
                     } 
+                    // Guide has this part, but it seems really weird to do this, no?
                     //else if (nametable is 3) {
                     //    nameTableAddr -= 0x800;
                     //}
@@ -151,7 +152,7 @@ namespace NesEmu.PPU {
         public void WriteCtrl(byte value) {
             var beforeNmi = Ctrl.ShouldGenerateVBlank();
             Ctrl.Update(value);
-            if (beforeNmi && Ctrl.ShouldGenerateVBlank() && Status.IsVBlank()) {
+            if (!beforeNmi && Ctrl.ShouldGenerateVBlank() && Status.IsVBlank()) {
                 NmiInterrupt = true;
             }
         }

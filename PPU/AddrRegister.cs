@@ -20,7 +20,7 @@ namespace NesEmu.Rom {
         }
 
         public ushort Get() {
-            return (ushort)((Value.Hi << 8) | Value.Lo);
+            return (ushort)((ushort)(Value.Hi << 8) | Value.Lo);
         }
 
         public void Update(byte data) {
@@ -39,8 +39,7 @@ namespace NesEmu.Rom {
         
         public void Increment(byte inc) {
             byte lo = Value.Lo;
-            lo += inc;
-            Value.Lo = lo;
+            Value.Lo += inc;
 
             // If it is smaller, it must have wrapped
             if (lo > Value.Lo) {

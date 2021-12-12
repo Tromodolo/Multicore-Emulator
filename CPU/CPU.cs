@@ -60,7 +60,6 @@ namespace NesEmu.CPU {
 #endif
 
             var op = GetOpFromByte(MemRead(ProgramCounter));
-            ProgramCounter++;
             HandleInstruction(op);
         }
 
