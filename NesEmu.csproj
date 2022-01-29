@@ -4,13 +4,16 @@
     <OutputType>Exe</OutputType>
     <TargetFramework>net5.0</TargetFramework>
     <Configurations>Debug;Release;Nestest</Configurations>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="ppy.osu.Framework" Version="2021.907.0" />
-  </ItemGroup>
-
-  <ItemGroup>
+    <None Update="cpu_interrupts.nes">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="nestest-clean.log">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="nestest.nes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

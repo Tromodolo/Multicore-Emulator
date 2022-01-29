@@ -14,6 +14,8 @@ namespace NesEmu.PPU {
         public byte OamAddr { get; private set; }
         public ScreenMirroring Mirroring { get; private set; }
         public ulong CurrentCycle { get; private set; }
+        public ushort CurrentScanline { get; set; }
+        public ulong TotalCycles { get; set; }
 
         byte InternalDataBuffer;
         MaskRegister Mask;
@@ -22,7 +24,6 @@ namespace NesEmu.PPU {
         ScrollRegister Scroll;
         StatusRegister Status;
 
-        ushort CurrentScanline;
         bool NmiInterrupt;
 
         public PPU(byte[] chrRom, ScreenMirroring mirroring) {
@@ -40,24 +41,15 @@ namespace NesEmu.PPU {
             Scroll = new ScrollRegister();
             Status = new StatusRegister();
 
+            TotalCycles = 0;
             CurrentScanline = 0;
+            CurrentCycle = 0;
             NmiInterrupt = false;
         }
 
         void IncrementVramAddr() {
             Addr.Increment(Ctrl.GetVramAddrIncrement());
         }
-
-        //        pub fn is_interrupt(&mut self) -> bool {
-        //        self.nmi_interrupt
-        //    }
-
-        //    pub fn get_interrupt(&mut self) -> bool {
-        //        let interrupt = self.nmi_interrupt;
-        //    self.nmi_interrupt = false;
-        //        interrupt
-        //}
-
 
         // Horizontal:
         //   [ A1 ] [ a2 ]
@@ -84,11 +76,11 @@ namespace NesEmu.PPU {
                 case ScreenMirroring.Horizontal:
                     if (nametable is 1 or 2) {
                         nameTableAddr -= 0x400;
-                    } 
+                    }
                     // Guide has this part, but it seems really weird to do this, no?
-                    //else if (nametable is 3) {
-                    //    nameTableAddr -= 0x800;
-                    //}
+                    else if (nametable is 3) {
+                        nameTableAddr -= 0x800;
+                    }
                     break;
                 default:
                 case ScreenMirroring.FourScreen:
@@ -101,8 +93,13 @@ namespace NesEmu.PPU {
 
         public bool IncrementCycle(ulong cycleCount) {
             CurrentCycle += cycleCount;
+            TotalCycles += cycleCount / 3;
 
             if (CurrentCycle >= 341) {
+                if (IsSpriteZeroHit(cycleCount)) {
+                    Status.SetSpriteZeroHit(true);
+                }
+
                 CurrentCycle -= 341;
                 CurrentScanline++;
 
@@ -115,7 +112,6 @@ namespace NesEmu.PPU {
                 }
 
                 if (CurrentScanline >= 262) {
-                    //CurrentFrame++
                     CurrentScanline = 0;
                     Status.SetSpriteZeroHit(false);
                     Status.ResetVBlank();
@@ -124,6 +120,12 @@ namespace NesEmu.PPU {
                 }
             }
             return false;
+        }
+
+        private bool IsSpriteZeroHit(ulong cycle) {
+            var y = OamData[0];
+            var x = OamData[3];
+            return (y == CurrentScanline) && x <= cycle && Mask.GetSprite();
         }
 
         public bool IsInterrupt() {
@@ -178,41 +180,58 @@ namespace NesEmu.PPU {
             var addr = Addr.Get();
             IncrementVramAddr();
 
-            if (addr is >= 0x000 and <= 0x1fff) {
-                var buffer = InternalDataBuffer;
+            if (addr >= 0 && addr <= 0x1fff) {
+                var result = InternalDataBuffer;
                 InternalDataBuffer = ChrRom[addr];
-                return buffer;
-            } else if (addr is >= 0x2000 and <= 0x2fff) {
-                var buffer = InternalDataBuffer;
-                InternalDataBuffer = Vram[MirrorVramAddr(addr)];
-                return buffer;
-            } else if (addr is 0x3f10 or 0x3f14 or 0x3f18 or 0x3f1c) { // These are mirrors of 0x3f00, 0x3f04, 0x3f08, ox3f0c
-                var addrMirror = addr - 0x10;
-                return PaletteTable[(ushort)(addrMirror - 0x3f00)];
-            } else if (addr is >= 0x3000 and <= 0x3eff) {
-                throw new Exception("Address Space 0x3000 => 0x3eff is not supposed to be used");
-            } else if (addr is >= 0x3f00 and <=0x3fff) {
-                return PaletteTable[(ushort)(addr - 0x3f00)];
-            } else {
-                throw new Exception(string.Format("Unexpected access to mirrored space {0}", addr));
+                return result;
             }
+
+            if (addr >= 0x2000 && addr <= 0x2fff) {
+                var result = InternalDataBuffer;
+                InternalDataBuffer = Vram[MirrorVramAddr(addr)];
+                return result;
+            }
+
+            if (addr >= 0x3000 && addr <= 0x3eff) {
+                throw new Exception("This should normally not be reached");
+            }
+
+            if (addr == 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
+                var mirror = addr - 0x10;
+                return PaletteTable[mirror];
+            }
+
+            if (addr >= 0x3f00 && addr <= 0x3fff) {
+                return PaletteTable[addr - 0x3f00];
+            }
+
+            throw new Exception("Reached unknown address");
         }
+
         public void WriteData(byte value) {
             var addr = Addr.Get();
-            if (addr is >= 0x000 and <= 0x1fff) {
-                throw new Exception("Trying to write to CHR ROM");
-            } else if (addr is >= 0x2000 and <= 0x2fff) {
-                Vram[MirrorVramAddr(addr)] = value;
-            } else if (addr is 0x3f10 or 0x3f14 or 0x3f18 or 0x3f1c) { // These are mirrors of 0x3f00, 0x3f04, 0x3f08, ox3f0c
-                var addrMirror = addr - 0x10;
-                PaletteTable[addrMirror - 0x3f10] = value;
-            } else if (addr is >= 0x3000 and <= 0x3eff) {
-                throw new Exception("Address Space 0x3000 => 0x3eff is not supposed to be used");
-            } else if (addr is >= 0x3f00 and <= 0x3fff) {
-                PaletteTable[addr - 0x3f00] = value;
-            } else {
-                throw new Exception(string.Format("Unexpected access to mirrored space {0}", addr));
+            if (addr >= 0 && addr <= 0x1fff) {
+                Console.WriteLine("Trying to write to Chr Rom");
             }
+
+            if (addr >= 0x2000 && addr <= 0x2fff) {
+                var mirror = MirrorVramAddr(addr);
+                Vram[mirror] = value;
+            }
+
+            if (addr >= 0x3000 && addr <= 0x3eff) {
+                throw new NotImplementedException("Shouldn't be used");
+            }
+
+            if (addr >= 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
+                var mirror = addr - 0x10;
+                PaletteTable[mirror - 0x3f00] = value;
+            }
+
+            if (addr >= 0x3f00 && addr <= 0x3fff) {
+                PaletteTable[addr - 0x3f00] = value;
+            }
+
             IncrementVramAddr();
         }
 

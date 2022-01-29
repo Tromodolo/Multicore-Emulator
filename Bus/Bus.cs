@@ -41,7 +41,7 @@ namespace NesEmu.Bus {
         byte[] PrgRom;
 
         bool IsNewFrame;
-        
+
         public Bus(Rom.Rom rom) {
             PPU = new PPU.PPU(rom.ChrRom, rom.Mirroring);
 
@@ -72,7 +72,10 @@ namespace NesEmu.Bus {
             return PrgRom[address];
         }
 
+        public UInt64 UnprocessedCycles{ get; set; }
+
         public void TickPPUCycles(byte cycleCount) {
+#if NESTEST
             CycleCount += cycleCount;
 
             // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
@@ -80,6 +83,27 @@ namespace NesEmu.Bus {
             if (isNewFrame) {
                 IsNewFrame = isNewFrame;
             }
+#else
+            UnprocessedCycles += cycleCount;
+#endif
+
+        }
+
+        public void FastForwardPPU() {
+#if !NESTEST
+            while (UnprocessedCycles > 0) {
+                var toProcess = UnprocessedCycles >= 60 ? 60 : UnprocessedCycles;
+                CycleCount += toProcess;
+
+                // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
+                var isNewFrame = PPU.IncrementCycle((ulong)(toProcess * 3));
+                if (isNewFrame) {
+                    IsNewFrame = isNewFrame;
+                }
+
+                UnprocessedCycles -= toProcess;
+            }
+#endif
         }
     }
 }

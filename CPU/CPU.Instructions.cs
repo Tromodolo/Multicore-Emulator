@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.CPU {
-    public partial class CPU {
+    public partial class NesCpu {
         OpCode GetOpFromByte(byte value) {
             return OpCodeList.OpCodes.FirstOrDefault(x => x.Code == value);
         }
@@ -20,52 +20,52 @@ namespace NesEmu.CPU {
                 case AddressingMode.Accumulator: return (0, false);
                 case AddressingMode.Immediate: return (address, false);
                 case AddressingMode.Relative: {
-                    ushort jump = MemRead(address);
-                    address++;
-                    ushort jumpAddr = (ushort)(address + jump);
-                    return (jumpAddr, false);
-                }
+                        ushort jump = MemRead(address);
+                        address++;
+                        ushort jumpAddr = (ushort)(address + jump);
+                        return (jumpAddr, false);
+                    }
                 case AddressingMode.ZeroPage: return (MemRead(address), false);
                 case AddressingMode.ZeroPageX: {
-                    byte pos = MemRead(address);
-                    pos += RegisterX;
-                    return (pos, false);
-                }
+                        byte pos = MemRead(address);
+                        pos += RegisterX;
+                        return (pos, false);
+                    }
                 case AddressingMode.ZeroPageY: {
-                    byte pos = MemRead(address);
-                    pos += RegisterY;
-                    return (pos, false);
-                }
+                        byte pos = MemRead(address);
+                        pos += RegisterY;
+                        return (pos, false);
+                    }
                 case AddressingMode.Absolute: return (MemReadShort(address), false);
                 case AddressingMode.AbsoluteX: {
-                    ushort baseAddr = MemReadShort(address);
-                    ushort addr = (ushort)(baseAddr + RegisterX);
-                    return (addr, IsPageCross(baseAddr, addr));
-                }
-                case AddressingMode.AbsoluteY: {
-                    ushort baseAddr = MemReadShort(address);
-                    ushort addr = (ushort)(baseAddr + RegisterY);
-                    return (addr, IsPageCross(baseAddr, addr));
-                }
-                case AddressingMode.Indirect: {
-                    ushort addr = MemReadShort(address);
-                    // 6502 bug mode with with page boundary:
-                    //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
-                    // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
-                    // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
-                    if ((addr & 0x00ff) == 0x00ff) {
-                        byte lo = MemRead(addr);
-                        byte hi = MemRead((ushort)(addr & 0xff00));
-                        return ((ushort)((hi << 8) | lo), false);
-                    } else {
-                        return (MemReadShort(addr), false);
+                        ushort baseAddr = MemReadShort(address);
+                        ushort addr = (ushort)(baseAddr + RegisterX);
+                        return (addr, IsPageCross(baseAddr, addr));
                     }
-                }
+                case AddressingMode.AbsoluteY: {
+                        ushort baseAddr = MemReadShort(address);
+                        ushort addr = (ushort)(baseAddr + RegisterY);
+                        return (addr, IsPageCross(baseAddr, addr));
+                    }
+                case AddressingMode.Indirect: {
+                        ushort addr = MemReadShort(address);
+                        // 6502 bug mode with with page boundary:
+                        //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
+                        // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
+                        // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
+                        if ((addr & 0x00ff) == 0x00ff) {
+                            byte lo = MemRead(addr);
+                            byte hi = MemRead((ushort)(addr & 0xff00));
+                            return ((ushort)((hi << 8) | lo), false);
+                        } else {
+                            return (MemReadShort(addr), false);
+                        }
+                    }
                 case AddressingMode.IndirectX: {
-                    byte baseAddr = MemRead(address);
-                    byte pointer = (byte)(baseAddr + RegisterX);
-                    byte lo = MemRead(pointer);
-                    pointer++;
+                        byte baseAddr = MemRead(address);
+                        byte pointer = (byte)(baseAddr + RegisterX);
+                        byte lo = MemRead(pointer);
+                        pointer++;
                     byte hi = MemRead(pointer);
                     return ((ushort)((hi << 8) | lo), false);
                 }
@@ -76,7 +76,8 @@ namespace NesEmu.CPU {
                     byte hi = MemRead(baseAddr);
                     ushort derefBase = ((ushort)((ushort)(hi << 8) | lo));
                     ushort deref = (ushort)(derefBase + RegisterY);
-                    return (deref, IsPageCross(baseAddr, deref));
+                    var isCross = IsPageCross(baseAddr, deref);
+                    return (deref, isCross);
                 }
                 default:
                     throw new NotImplementedException("Unknown mode received");
@@ -136,37 +137,56 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void NmiInterrupt() {
-            StackPushShort(StackPointer);
-
-            var flags = Status;
-            flags |= Flags.Break;
-            flags &= ~Flags.Break2;
-            StackPush((byte)flags);
-
-            SetStatusFlag(Flags.InterruptDisable);
-
-            Bus.TickPPUCycles(2);
-            ProgramCounter = MemReadShort(0xfffa);
+        enum InterruptType {
+            NMI,
+            IRQ,
+            BRK,
+            RESET
         }
 
-        void BrkInterrupt() {
-            StackPushShort(StackPointer);
+        void BRK() {
+            Bus.TickPPUCycles(1);
+            Interrupt(InterruptType.BRK);
+        }
 
-            var flags = Status;
-            flags |= Flags.Break;
-            flags |= Flags.Break2;
-            StackPush((byte)flags);
-
+        void NMI() {
             Bus.TickPPUCycles(2);
-            ProgramCounter = MemReadShort(0xfffa);
+            Interrupt(InterruptType.NMI);
+        }
+
+        void Interrupt(InterruptType interrupt) {
+            if (interrupt != InterruptType.RESET) {
+                StackPushShort(ProgramCounter);
+
+                // Pushes the CPU flags
+                byte flags = (byte)Status; // Sets bit 5 and 4
+                flags |= 0x30;
+                if (interrupt != InterruptType.BRK)
+                    flags = (byte)((flags | 0x10) ^ 0x10); // Disable the bit 4 to the copy of the CPU flags
+
+                StackPush(flags);
+                Status |= Flags.InterruptDisable;
+            }
+
+            switch (interrupt) {
+                case InterruptType.NMI:
+                    ProgramCounter = MemReadShort(0xfffa);
+                    break;
+                case InterruptType.RESET:
+                    ProgramCounter = MemReadShort(0xfffc);
+                    break;
+                case InterruptType.IRQ:
+                case InterruptType.BRK:
+                    ProgramCounter = MemReadShort(0xfffe);
+                    break;
+                default:
+                    throw new InvalidOperationException($"The interruption {interrupt} does not exist.");
+            }
         }
 
         void HandleInstruction(OpCode op) {
-            InstructionCount++;
-
             if (Bus.GetNmiStatus()) {
-                NmiInterrupt();
+                NMI();
             }
 
             ProgramCounter++;
@@ -176,9 +196,13 @@ namespace NesEmu.CPU {
             switch (op.Name) {
                 case "NOP":
                 case "*NOP":
+                    var (_, pageCross) = GetOperandAddress(mode);
+                    if (pageCross) {
+                        Bus.TickPPUCycles(1);
+                    }
                     break;
                 case "BRK":
-                    BrkInterrupt();
+                    BRK();
                     break;
                 case "ADC":
                     adc(mode);
@@ -475,7 +499,7 @@ namespace NesEmu.CPU {
                 sbyte jump = (sbyte)MemRead(ProgramCounter);
                 var jumpAddr = (ushort)(ProgramCounter + jump + 1);
 
-                if (((ProgramCounter + 1) & 0xff00) != (jumpAddr & 0xff00)) {
+                if ((((ushort)(ProgramCounter + 1)) & 0xff00) != (jumpAddr & 0xff00)) {
                     Bus.TickPPUCycles(1);
                 }
                 ProgramCounter = jumpAddr;
@@ -595,7 +619,7 @@ namespace NesEmu.CPU {
         }
 
         void jsr() {
-            StackPushShort((ushort)(ProgramCounter + 2 - 1));
+            StackPushShort((ushort)(ProgramCounter + 1));
             var addr = MemReadShort(ProgramCounter);
             ProgramCounter = addr;
         }
@@ -787,7 +811,7 @@ namespace NesEmu.CPU {
             }
         }
 
-        void sta(AddressingMode mode){
+        void sta(AddressingMode mode) {
             var (address, _) = GetOperandAddress(mode);
             MemWrite(address, Accumulator);
         }
@@ -869,12 +893,12 @@ namespace NesEmu.CPU {
             if ((six && five) || (six && !five)) {
                 SetStatusFlag(Flags.Carry);
                 ClearStatusFlag(Flags.Overflow);
-            } else if((!six && !five) || (!six && five)) {
+            } else if ((!six && !five) || (!six && five)) {
                 SetStatusFlag(Flags.Overflow);
                 ClearStatusFlag(Flags.Carry);
             }
         }
-                       
+
         void asr(AddressingMode mode) {
             var (address, _) = GetOperandAddress(mode);
             var value = MemRead(address);
@@ -905,7 +929,7 @@ namespace NesEmu.CPU {
 
             RegisterX &= Accumulator;
             RegisterX -= value;
-            if ((value >> 7 ) == 1) {
+            if ((value >> 7) == 1) {
                 SetStatusFlag(Flags.Carry);
             } else {
                 ClearStatusFlag(Flags.Carry);

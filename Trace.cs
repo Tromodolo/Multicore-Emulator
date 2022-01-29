@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace NesEmu {
     public static class Trace {
-        public static string Log(CPU.CPU cpu) {
+        public static string Log(NesCpu cpu) {
             var opcode = cpu.MemRead(cpu.ProgramCounter);
             var op = OpCodeList.OpCodes.FirstOrDefault(x => x.Code == opcode);
             if (op == null) {
@@ -149,7 +149,9 @@ namespace NesEmu {
             }
 
             // Registers
-            sb.Append($"A:{cpu.Accumulator:X2} X:{cpu.RegisterX:X2} Y:{cpu.RegisterY:X2} P:{(int)cpu.Status:X2} SP:{cpu.StackPointer:X2}\r\n");
+            sb.Append($"A:{cpu.Accumulator:X2} X:{cpu.RegisterX:X2} Y:{cpu.RegisterY:X2} P:{(int)cpu.Status:X2} SP:{cpu.StackPointer:X2}");
+
+            sb.Append($" PPU:{cpu.Bus.PPU.CurrentScanline.ToString().PadLeft(3, ' ')},{cpu.Bus.PPU.CurrentCycle.ToString().PadLeft(3, ' ')} CYC:{cpu.Bus.PPU.TotalCycles}\r\n");
 
             var trace = sb.ToString();
             return trace;

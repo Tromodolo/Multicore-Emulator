@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.CPU {
-    public partial class CPU {
+    public partial class NesCpu {
         public void StackPush(byte value) {
             MemWrite((ushort)(StackStart + StackPointer), value);
             StackPointer--;

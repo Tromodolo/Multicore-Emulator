@@ -7,11 +7,11 @@ using System.Threading.Tasks;
 namespace NesEmu.PPU {
     public class ScrollRegister {
         (byte X, byte Y) Value;
-        bool WriteY;
+        bool Latch;
 
         public ScrollRegister() {
             Value = (0, 0);
-            WriteY = false;
+            Latch = false;
         }
 
         public byte GetX() {
@@ -23,17 +23,17 @@ namespace NesEmu.PPU {
         }
 
         public void Update(byte data) {
-            if (!WriteY) {
+            if (!Latch) {
                 Value.X = data;
             } else {
                 Value.Y = data;
             }
 
-            WriteY = !WriteY;
+            Latch = !Latch;
         }
 
         public void ResetLatch() {
-            WriteY = false;
+            Latch = false;
         }
     }
 }

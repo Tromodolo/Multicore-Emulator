@@ -25,6 +25,17 @@ namespace NesEmu.Rom {
             Status = ControlRegisterStatus.Empty;
         }
 
+        public ushort GetNameTableAddress() {
+            var status = (byte)Status;
+            return (status & 0b11) switch {
+                0 => 0x2000,
+                1 => 0x2400,
+                2 => 0x2800,
+                3 => 0x2c00,
+                _ => 0x2000,
+            };
+        }
+
         public byte GetVramAddrIncrement() {
             if (Status.HasFlag(ControlRegisterStatus.VramAddIncrement)) {
                 return 32;
@@ -49,9 +60,21 @@ namespace NesEmu.Rom {
             }
         }
 
-        //public ushort GetSpriteSize() {
+        public byte GetSpriteSize() {
+            if (Status.HasFlag(ControlRegisterStatus.SpriteSize)) {
+                return 16;
+            } else {
+                return 8;
+            }
+        }
 
-        //}
+        public byte MasterSlaveSelect() {
+            if (Status.HasFlag(ControlRegisterStatus.SpriteSize)) {
+                return 1;
+            } else {
+                return 0;
+            }
+        }
 
         public bool ShouldGenerateVBlank() {
             return Status.HasFlag(ControlRegisterStatus.GenerateNMI);

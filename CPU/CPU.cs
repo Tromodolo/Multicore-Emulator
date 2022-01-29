@@ -1,11 +1,13 @@
 ﻿using NesEmu.Bus;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.CPU {
+
     [Flags]
     public enum Flags {
         Carry = 1,
@@ -18,7 +20,7 @@ namespace NesEmu.CPU {
         Negative = 1 << 7,
     }
 
-    public partial class CPU {
+    public partial class NesCpu {
         const ushort StackStart = 0x0100;
         const byte StackReset = 0xfd;
 
@@ -27,12 +29,12 @@ namespace NesEmu.CPU {
         public byte RegisterY { get; private set; }
         public ushort ProgramCounter { get; private set; }
         public byte StackPointer { get; private set; }
-        public Bus.Bus Bus { get; private set; }
         public bool Running { get; private set; }
         public Flags Status { get; private set; }
-        public UInt64 InstructionCount { get; private set; }
+        public UInt64 TotalCycles { get; set; }
+        public Bus.Bus Bus { get; set; }
 
-        public CPU(Rom.Rom rom) {
+        public NesCpu(Rom.Rom rom) {
             Bus = new Bus.Bus(rom);
             Reset();
         }
@@ -52,17 +54,31 @@ namespace NesEmu.CPU {
             Running = true;
         }
 
-        public void ExecuteNextInstruction() {
 #if NESTEST
-            if (ProgramCounter == 0xC66E) {
-                Running = false;
-            }
+        FileStream stream = File.Open("nestest-log.log", FileMode.OpenOrCreate);
 #endif
 
+        public void RunScanline(Func<int, bool> renderScanline) {
+            while (true) {
+                if ((Bus.UnprocessedCycles * 3) + Bus.PPU.CurrentCycle >= 341) {
+                    Bus.FastForwardPPU();
+                    break;
+                }
+#if NESTEST
+                var trace = Trace.Log(this);
+                stream.Write(Encoding.UTF8.GetBytes(trace));
+                stream.Flush();
+
+#endif
+                ExecuteInstruction();
+            }
+            renderScanline.Invoke(Bus.PPU.CurrentScanline - 1);
+        }
+
+        public void ExecuteInstruction() {
             var op = GetOpFromByte(MemRead(ProgramCounter));
             HandleInstruction(op);
         }
-
 
         void SetStatusFlag(Flags flag) {
             Status |= flag;
