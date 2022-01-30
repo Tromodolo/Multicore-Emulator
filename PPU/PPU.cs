@@ -41,9 +41,9 @@ namespace NesEmu.PPU {
             Scroll = new ScrollRegister();
             Status = new StatusRegister();
 
-            TotalCycles = 0;
+            TotalCycles = 7;
             CurrentScanline = 0;
-            CurrentCycle = 0;
+            CurrentCycle = 21;
             NmiInterrupt = false;
         }
 
@@ -211,7 +211,7 @@ namespace NesEmu.PPU {
         public void WriteData(byte value) {
             var addr = Addr.Get();
             if (addr >= 0 && addr <= 0x1fff) {
-                Console.WriteLine("Trying to write to Chr Rom");
+                ChrRom[addr] = value;
             }
 
             if (addr >= 0x2000 && addr <= 0x2fff) {
@@ -220,16 +220,16 @@ namespace NesEmu.PPU {
             }
 
             if (addr >= 0x3000 && addr <= 0x3eff) {
-                throw new NotImplementedException("Shouldn't be used");
+                //Console.WriteLine("0x3000 > x 0x3eff being used");
+                ////throw new NotImplementedException("Shouldn't be used");
             }
 
             if (addr >= 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
-                var mirror = addr - 0x10;
-                PaletteTable[mirror - 0x3f00] = value;
+                PaletteTable[(addr - 0x10) & 0x1F] = value;
             }
 
             if (addr >= 0x3f00 && addr <= 0x3fff) {
-                PaletteTable[addr - 0x3f00] = value;
+                PaletteTable[addr & 0x1F] = value;
             }
 
             IncrementVramAddr();

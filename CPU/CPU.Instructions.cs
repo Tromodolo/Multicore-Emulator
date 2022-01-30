@@ -71,12 +71,15 @@ namespace NesEmu.CPU {
                 }
                 case AddressingMode.IndirectY: {
                     byte baseAddr = MemRead(address);
+
                     byte lo = MemRead(baseAddr);
                     baseAddr++;
                     byte hi = MemRead(baseAddr);
+
                     ushort derefBase = ((ushort)((ushort)(hi << 8) | lo));
                     ushort deref = (ushort)(derefBase + RegisterY);
-                    var isCross = IsPageCross(baseAddr, deref);
+
+                    var isCross = IsPageCross(deref, derefBase);
                     return (deref, isCross);
                 }
                 default:
@@ -145,11 +148,17 @@ namespace NesEmu.CPU {
         }
 
         void BRK() {
+#if NESTEST
+            stream.Write(Encoding.UTF8.GetBytes("==BRK==\r\n"));
+#endif
             Bus.TickPPUCycles(1);
             Interrupt(InterruptType.BRK);
         }
 
         void NMI() {
+#if NESTEST
+            stream.Write(Encoding.UTF8.GetBytes("==NMI==\r\n"));
+#endif
             Bus.TickPPUCycles(2);
             Interrupt(InterruptType.NMI);
         }
@@ -159,12 +168,12 @@ namespace NesEmu.CPU {
                 StackPushShort(ProgramCounter);
 
                 // Pushes the CPU flags
-                byte flags = (byte)Status; // Sets bit 5 and 4
-                flags |= 0x30;
+                var flags = Status; // Sets bit 5 and 4
+                flags |= (Flags)0b110000;
                 if (interrupt != InterruptType.BRK)
-                    flags = (byte)((flags | 0x10) ^ 0x10); // Disable the bit 4 to the copy of the CPU flags
+                    flags &= ~Flags.Break; // Disable the bit 4 to the copy of the CPU flags
 
-                StackPush(flags);
+                StackPush((byte)flags);
                 Status |= Flags.InterruptDisable;
             }
 
@@ -185,6 +194,10 @@ namespace NesEmu.CPU {
         }
 
         void HandleInstruction(OpCode op) {
+            if (op == null) {
+                return;
+            }
+
             if (Bus.GetNmiStatus()) {
                 NMI();
             }
@@ -625,6 +638,10 @@ namespace NesEmu.CPU {
         }
 
         void lda(AddressingMode mode) {
+            if (ProgramCounter - 1 == 0xD922) {
+                var x = 5;
+            }
+
             var (address, pageCross) = GetOperandAddress(mode);
             var value = MemRead(address);
             Accumulator = value;

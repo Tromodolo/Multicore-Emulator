@@ -50,6 +50,9 @@ namespace NesEmu.Bus {
             } 
 
             if (address == 0x4016) {
+                if ((value & 1) == 1) {
+                    Controller1.ResetLatch();
+                }
                 // Controller 1, not handled yet
             } else if (address == 0x4017) {
                 // Controller 2, not handled yet
@@ -105,8 +108,7 @@ namespace NesEmu.Bus {
             }
 
             if (address == 0x4016) {
-                // Controller 1, not handled yet
-                return 0;
+                return Controller1.ReadNextButton();
             } else if (address == 0x4017) {
                 // Controller 2, not handled yet
                 return 0;

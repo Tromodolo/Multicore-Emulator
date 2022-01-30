@@ -17,7 +17,7 @@ namespace NesEmu {
         static UInt64 currentFrame = 0;
 
         static IntPtr Texture;
-        static uint[] FrameBuffer = new uint[256*240];
+        static uint[] FrameBuffer = new uint[256 * 240];
 
         static void Main(string[] args) {
             // Initilizes SDL.
@@ -66,13 +66,20 @@ namespace NesEmu {
             var lastScanline = 0;
             currentFrame = 0;
 
-            Texture = SDL.SDL_CreateTexture(renderer, SDL.SDL_PIXELFORMAT_RGB888, (int)SDL.SDL_TextureAccess.SDL_TEXTUREACCESS_STATIC, 256 * 3, 240 * 3);
+            Texture = SDL.SDL_CreateTexture(renderer, SDL.SDL_PIXELFORMAT_RGB888, (int)SDL.SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);
 
             // Main loop for the program
             while (running) {
                 // Check to see if there are any events and continue to do so until the queue is empty.
                 while (SDL.SDL_PollEvent(out SDL.SDL_Event e) == 1) {
+                    var key = e.key;
                     switch (e.type) {
+                        case SDL.SDL_EventType.SDL_KEYDOWN:
+                            HandleKeyDown(cpu, key);
+                            break;
+                        case SDL.SDL_EventType.SDL_KEYUP:
+                            HandleKeyUp(cpu, key);
+                            break;
                         case SDL.SDL_EventType.SDL_QUIT:
                             running = false;
                             break;
@@ -105,6 +112,54 @@ namespace NesEmu {
             SDL.SDL_Quit();
         }
 
+        private static void HandleKeyDown(NesCpu cpu, SDL.SDL_KeyboardEvent key) {
+            byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
+
+            switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_RETURN:
+                    currentKeys |= 0b00010000;
+                    break;
+                case SDL.SDL_Keycode.SDLK_w:
+                    currentKeys |= 0b00001000;
+                    break;
+                case SDL.SDL_Keycode.SDLK_s:
+                    currentKeys |= 0b00000100;
+                    break;
+                case SDL.SDL_Keycode.SDLK_a:
+                    currentKeys |= 0b00000010;
+                    break;
+                case SDL.SDL_Keycode.SDLK_d:
+                    currentKeys |= 0b00000001;
+                    break;
+            }
+
+            cpu.Bus.Controller1.Update(currentKeys);
+        }
+
+        private static void HandleKeyUp(NesCpu cpu, SDL.SDL_KeyboardEvent key) {
+            byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
+
+            switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_RETURN:
+                    currentKeys &= 0b11101111;
+                    break;
+                case SDL.SDL_Keycode.SDLK_w:
+                    currentKeys &= 0b11110111;
+                    break;
+                case SDL.SDL_Keycode.SDLK_s:
+                    currentKeys &= 0b11111011;
+                    break;
+                case SDL.SDL_Keycode.SDLK_a:
+                    currentKeys &= 0b11111101;
+                    break;
+                case SDL.SDL_Keycode.SDLK_d:
+                    currentKeys &= 0b11111110;
+                    break;
+            }
+
+            cpu.Bus.Controller1.Update(currentKeys);
+        }
+
         private static void DrawFrame(IntPtr renderer) {
             unsafe {
                 fixed (uint* pArray = FrameBuffer) {
@@ -116,7 +171,7 @@ namespace NesEmu {
                     rect.x = 0;
                     rect.y = 0;
 
-                    SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, 4);
+                    SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, 256 * 4);
                 }
 
                 SDL.SDL_RenderCopy(renderer, Texture, IntPtr.Zero, IntPtr.Zero);
@@ -128,7 +183,52 @@ namespace NesEmu {
             FrameBuffer[
                 x +
                 (y * 256)
-            ] = (uint)((color.r << 16) | (color.g << 168 | (color.b << 0)));
+            ] = (uint)((color.r << 16) | (color.g << 8 | (color.b << 0)));
+        }
+
+        private static bool RenderBaseFrame(PPU.PPU ppu) {
+            var bank = ppu.GetBackgroundPatternAddr();
+            for (var tileIndex = 0; tileIndex < 0x3c0; tileIndex++) {
+                var tileAddr = ppu.Vram[tileIndex];
+                var tile_x = tileIndex % 32;
+                var tile_y = tileIndex / 32;
+
+                var tile = ppu.ChrRom[(bank + tileAddr * 16)..(bank + tileAddr * 16 + 16)];
+
+                for (var y = 0; y <= 7; y++) {
+                    var pixelY = tile_y * 8 + y;
+                    var upper = tile[y];
+                    var lower = tile[y + 8];
+
+                    for (var x = 0; x <= 7; x++) {
+                        var pixelX = tile_x * 8 + x;
+
+                        var value = (1 & lower) << 1 | (1 & upper);
+                        upper = (byte)(upper >> 1);
+                        lower = (byte)(lower >> 1);
+                        (byte r, byte g, byte b, byte alpha) color;
+                        switch (value) {
+                            case 0:
+                                color = Palette.SystemPalette[0x01];
+                                break;
+                            case 1:
+                                color = Palette.SystemPalette[0x23];
+                                break;
+                            case 2:
+                                color = Palette.SystemPalette[0x27];
+                                break;
+                            case 3:
+                                color = Palette.SystemPalette[0x30];
+                                break;
+                            default: throw new Exception("Something fucky");
+                        };
+
+                        SetPixel(pixelX, pixelY, color);
+                    }
+                }
+            }
+
+            return true;
         }
 
         private static bool RenderScanline(PPU.PPU ppu, int scanline) {
@@ -153,7 +253,7 @@ namespace NesEmu {
                         continue;
                     }
 
-                    for (var x = 0; x <= 7; x++) {
+                    for (var x = 7; x >= 0; x--) {
                         var pixelX = tile_x * 8 + x;
 
                         var value = (1 & lower) << 1 | (1 & upper);

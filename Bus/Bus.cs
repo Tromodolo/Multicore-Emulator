@@ -37,6 +37,8 @@ namespace NesEmu.Bus {
         public UInt64 CycleCount { get; private set; }
         public PPU.PPU PPU { get; private set; }
 
+        public ControllerRegister Controller1 { get; set; }
+
         byte[] VRAM;
         byte[] PrgRom;
 
@@ -44,6 +46,7 @@ namespace NesEmu.Bus {
 
         public Bus(Rom.Rom rom) {
             PPU = new PPU.PPU(rom.ChrRom, rom.Mirroring);
+            Controller1 = new ControllerRegister();
 
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;

@@ -60,6 +60,12 @@ namespace NesEmu.CPU {
 
         public void RunScanline(Func<int, bool> renderScanline) {
             while (true) {
+#if NESTEST
+                if (ProgramCounter == 0x0001) {
+                    stream.Flush();
+                }
+#endif
+
                 if ((Bus.UnprocessedCycles * 3) + Bus.PPU.CurrentCycle >= 341) {
                     Bus.FastForwardPPU();
                     break;

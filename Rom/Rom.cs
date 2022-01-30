@@ -70,7 +70,7 @@ namespace NesEmu.Rom {
             Mapper = Convert.ToByte(mapper);
             Mirroring = mirror;
             PrgRom = rawBytes[prgRomStart..(prgRomStart + prgRomSize)];
-            ChrRom = rawBytes[chrRomStart..(chrRomStart + chrRomSize)];
+            ChrRom = chrRomSize == 0 ? new byte[ChrRomSize * 16] : rawBytes[chrRomStart..(chrRomStart + chrRomSize)];
 
         }
     }
