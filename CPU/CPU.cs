@@ -58,7 +58,7 @@ namespace NesEmu.CPU {
         FileStream stream = File.Open("nestest-log.log", FileMode.OpenOrCreate);
 #endif
 
-        public void RunScanline(Func<int, bool> renderScanline) {
+        public byte RunScanline() {
             while (true) {
 #if NESTEST
                 if (ProgramCounter == 0x0001) {
@@ -78,7 +78,7 @@ namespace NesEmu.CPU {
 #endif
                 ExecuteInstruction();
             }
-            renderScanline.Invoke(Bus.PPU.CurrentScanline - 1);
+            return (byte)(Bus.PPU.CurrentScanline - 1);
         }
 
         public void ExecuteInstruction() {

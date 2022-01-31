@@ -257,5 +257,35 @@ namespace NesEmu.PPU {
         public void WriteOAMAddr(byte value) {
             OamAddr = value;
         }
+
+        public byte[] GetNametableTilePalette(byte tileX, byte tileY) {
+            var attrTableIndex = tileY / 4 * 8 + tileX / 4;
+            var attrValue = Vram[0x3c0 + attrTableIndex];
+
+            var segmentX = tileX % 4 / 2;
+            var segmentY = tileY % 4 / 2;
+
+            var paletteIndex = 0;
+            if (segmentX == 0 && segmentY == 0) {
+                paletteIndex = attrValue & 0b11;
+            } 
+            else if (segmentX == 1 && segmentY == 0) {
+                paletteIndex = (attrValue >> 2) & 0b11;
+            } 
+            else if (segmentX == 0 && segmentY == 1) {
+                paletteIndex = (attrValue >> 4) & 0b11;
+            } 
+            else if (segmentX == 1 && segmentY == 1) {
+                paletteIndex = (attrValue >> 6) & 0b11;
+            }
+
+            var paletteStart = paletteIndex * 4 + 1;
+            return new byte[] {
+                PaletteTable[0],
+                PaletteTable[paletteStart],
+                PaletteTable[paletteStart + 1],
+                PaletteTable[paletteStart + 2],
+            };
+        } 
     }
 }

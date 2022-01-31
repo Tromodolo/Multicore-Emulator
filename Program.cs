@@ -65,6 +65,7 @@ namespace NesEmu {
             var running = true;
             var lastScanline = 0;
             currentFrame = 0;
+            Stopwatch sw = new Stopwatch();
 
             Texture = SDL.SDL_CreateTexture(renderer, SDL.SDL_PIXELFORMAT_RGB888, (int)SDL.SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);
 
@@ -95,15 +96,19 @@ namespace NesEmu {
                 //if (SDL.SDL_RenderClear(renderer) < 0) {
                 //    Console.WriteLine($"There was an issue with clearing the render surface. {SDL.SDL_GetError()}");
                 //}
+                //sw.Restart();
+                var scanline = cpu.RunScanline();
+                if (scanline < lastScanline) {
+                    //sw.Stop();
 
-                cpu.RunScanline((scanline) => {
-                    if (scanline < lastScanline) {
-                        currentFrame++;
-                        DrawFrame(renderer);
-                    }
-                    lastScanline = scanline;
-                    return RenderScanline(cpu.Bus.PPU, scanline);
-                });
+                    currentFrame++;
+                    DrawFrame(renderer);
+                    //if (sw.ElapsedMilliseconds <= 16) {
+                    //    Thread.Sleep(16 - (int)sw.ElapsedMilliseconds);
+                    //}
+                }
+                RenderScanline(cpu.Bus.PPU, scanline);
+                lastScanline = scanline;
             }
 
             // Clean up the resources that were created.
@@ -179,56 +184,11 @@ namespace NesEmu {
             }
         }
 
-        private static void SetPixel(int x, int y, (byte r, byte g, byte b, byte alpha) color) {
+        private static void SetPixel(int x, int y, (byte r, byte g, byte b) color) {
             FrameBuffer[
                 x +
                 (y * 256)
             ] = (uint)((color.r << 16) | (color.g << 8 | (color.b << 0)));
-        }
-
-        private static bool RenderBaseFrame(PPU.PPU ppu) {
-            var bank = ppu.GetBackgroundPatternAddr();
-            for (var tileIndex = 0; tileIndex < 0x3c0; tileIndex++) {
-                var tileAddr = ppu.Vram[tileIndex];
-                var tile_x = tileIndex % 32;
-                var tile_y = tileIndex / 32;
-
-                var tile = ppu.ChrRom[(bank + tileAddr * 16)..(bank + tileAddr * 16 + 16)];
-
-                for (var y = 0; y <= 7; y++) {
-                    var pixelY = tile_y * 8 + y;
-                    var upper = tile[y];
-                    var lower = tile[y + 8];
-
-                    for (var x = 0; x <= 7; x++) {
-                        var pixelX = tile_x * 8 + x;
-
-                        var value = (1 & lower) << 1 | (1 & upper);
-                        upper = (byte)(upper >> 1);
-                        lower = (byte)(lower >> 1);
-                        (byte r, byte g, byte b, byte alpha) color;
-                        switch (value) {
-                            case 0:
-                                color = Palette.SystemPalette[0x01];
-                                break;
-                            case 1:
-                                color = Palette.SystemPalette[0x23];
-                                break;
-                            case 2:
-                                color = Palette.SystemPalette[0x27];
-                                break;
-                            case 3:
-                                color = Palette.SystemPalette[0x30];
-                                break;
-                            default: throw new Exception("Something fucky");
-                        };
-
-                        SetPixel(pixelX, pixelY, color);
-                    }
-                }
-            }
-
-            return true;
         }
 
         private static bool RenderScanline(PPU.PPU ppu, int scanline) {
@@ -241,6 +201,7 @@ namespace NesEmu {
                 var tileAddr = ppu.Vram[tileIndex];
                 var tile_x = tileIndex % 32;
                 var tile_y = tileIndex / 32;
+                var palette = ppu.GetNametableTilePalette((byte)tile_x, (byte)tile_y);
 
                 var tile = ppu.ChrRom[(bank + tileAddr * 16)..(bank + tileAddr * 16 + 16)];
 
@@ -259,19 +220,19 @@ namespace NesEmu {
                         var value = (1 & lower) << 1 | (1 & upper);
                         upper = (byte)(upper >> 1);
                         lower = (byte)(lower >> 1);
-                        (byte r, byte g, byte b, byte alpha) color;
+                        (byte r, byte g, byte b) color;
                         switch (value) {
                             case 0:
-                                color = Palette.SystemPalette[0x01];
+                                color = Palette.SystemPalette[palette[0]];
                                 break;
                             case 1:
-                                color = Palette.SystemPalette[0x23];
+                                color = Palette.SystemPalette[palette[1]];
                                 break;
                             case 2:
-                                color = Palette.SystemPalette[0x27];
+                                color = Palette.SystemPalette[palette[2]];
                                 break;
                             case 3:
-                                color = Palette.SystemPalette[0x30];
+                                color = Palette.SystemPalette[palette[3]];
                                 break;
                             default: throw new Exception("Something fucky");
                         };

@@ -152,6 +152,7 @@ namespace NesEmu.CPU {
             stream.Write(Encoding.UTF8.GetBytes("==BRK==\r\n"));
 #endif
             Bus.TickPPUCycles(1);
+            ProgramCounter++;
             Interrupt(InterruptType.BRK);
         }
 
@@ -193,18 +194,37 @@ namespace NesEmu.CPU {
             }
         }
 
+        bool isInNmi = false;
+
         void HandleInstruction(OpCode op) {
             if (op == null) {
                 return;
             }
 
+            AddressingMode mode;
+            ushort PCCopy;
+
             if (Bus.GetNmiStatus()) {
+                //var trace = Trace.Log(this);
+                //Console.Write(trace);
+                //Console.WriteLine("===NMI===");
                 NMI();
+                isInNmi = true;
+
+                op = GetOpFromByte(MemRead(ProgramCounter));
+                ProgramCounter++;
+                mode = op.Mode;
+                PCCopy = ProgramCounter;
+            } else {
+                ProgramCounter++;
+                mode = op.Mode;
+                PCCopy = ProgramCounter;
             }
 
-            ProgramCounter++;
-            var mode = op.Mode;
-            ushort PCCopy = ProgramCounter;
+            //if (isInNmi) {
+            //    var trace = Trace.Log(this);
+            //    Console.Write(trace);
+            //}          
 
             switch (op.Name) {
                 case "NOP":
