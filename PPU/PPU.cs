@@ -198,7 +198,7 @@ namespace NesEmu.PPU {
 
             if (addr == 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
                 var mirror = addr - 0x10;
-                return PaletteTable[mirror];
+                return PaletteTable[mirror - 0x3f00];
             }
 
             if (addr >= 0x3f00 && addr <= 0x3fff) {
@@ -224,12 +224,12 @@ namespace NesEmu.PPU {
                 ////throw new NotImplementedException("Shouldn't be used");
             }
 
-            if (addr >= 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
-                PaletteTable[(addr - 0x10) & 0x1F] = value;
+            if (addr == 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
+                PaletteTable[(addr - 0x10) - 0x3f00] = value;
             }
 
             if (addr >= 0x3f00 && addr <= 0x3fff) {
-                PaletteTable[addr & 0x1F] = value;
+                PaletteTable[addr - 0x3f00] = value;
             }
 
             IncrementVramAddr();
@@ -265,21 +265,15 @@ namespace NesEmu.PPU {
             var segmentX = tileX % 4 / 2;
             var segmentY = tileY % 4 / 2;
 
-            var paletteIndex = 0;
-            if (segmentX == 0 && segmentY == 0) {
-                paletteIndex = attrValue & 0b11;
-            } 
-            else if (segmentX == 1 && segmentY == 0) {
-                paletteIndex = (attrValue >> 2) & 0b11;
-            } 
-            else if (segmentX == 0 && segmentY == 1) {
-                paletteIndex = (attrValue >> 4) & 0b11;
-            } 
-            else if (segmentX == 1 && segmentY == 1) {
-                paletteIndex = (attrValue >> 6) & 0b11;
-            }
+            var paletteIndex = (segmentX, segmentY) switch {
+                (0, 0) => attrValue & 0b11,
+                (1, 0) => (attrValue >> 2) & 0b11,
+                (0, 1) => (attrValue >> 4) & 0b11,
+                (1, 1) => (attrValue >> 6) & 0b11,
+                (_, _) => attrValue & 0b11,
+            };
 
-            var paletteStart = paletteIndex * 4 + 1;
+            var paletteStart =  1 + paletteIndex * 4;
             return new byte[] {
                 PaletteTable[0],
                 PaletteTable[paletteStart],

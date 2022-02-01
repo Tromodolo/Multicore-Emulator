@@ -152,7 +152,6 @@ namespace NesEmu.CPU {
             stream.Write(Encoding.UTF8.GetBytes("==BRK==\r\n"));
 #endif
             Bus.TickPPUCycles(1);
-            ProgramCounter++;
             Interrupt(InterruptType.BRK);
         }
 

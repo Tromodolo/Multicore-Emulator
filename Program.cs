@@ -98,16 +98,16 @@ namespace NesEmu {
                 //}
                 //sw.Restart();
                 var scanline = cpu.RunScanline();
+                RenderScanline(cpu.Bus.PPU, scanline);
+
                 if (scanline < lastScanline) {
                     //sw.Stop();
-
                     currentFrame++;
                     DrawFrame(renderer);
                     //if (sw.ElapsedMilliseconds <= 16) {
                     //    Thread.Sleep(16 - (int)sw.ElapsedMilliseconds);
                     //}
                 }
-                RenderScanline(cpu.Bus.PPU, scanline);
                 lastScanline = scanline;
             }
 
@@ -121,6 +121,15 @@ namespace NesEmu {
             byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_j:
+                    currentKeys |= 0b10000000;
+                    break;
+                case SDL.SDL_Keycode.SDLK_k:
+                    currentKeys |= 0b01000000;
+                    break;
+                case SDL.SDL_Keycode.SDLK_RSHIFT:
+                    currentKeys |= 0b00100000;
+                    break;
                 case SDL.SDL_Keycode.SDLK_RETURN:
                     currentKeys |= 0b00010000;
                     break;
@@ -145,6 +154,15 @@ namespace NesEmu {
             byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_j:
+                    currentKeys &= 0b01111111;
+                    break;
+                case SDL.SDL_Keycode.SDLK_k:
+                    currentKeys &= 0b10111111;
+                    break;
+                case SDL.SDL_Keycode.SDLK_RSHIFT:
+                    currentKeys &= 0b11011111;
+                    break;
                 case SDL.SDL_Keycode.SDLK_RETURN:
                     currentKeys &= 0b11101111;
                     break;
