@@ -260,6 +260,96 @@ namespace NesEmu {
                 }
             }
 
+            var oamIndex = 0;
+            var spriteSize = ppu.GetSpriteSize();
+            foreach (var data in ppu.OamData) {
+                if (oamIndex >= ppu.OamData.Length) {
+                    break;
+                }
+
+                var yPosition = ppu.OamData[oamIndex];
+                var tileIndex = ppu.OamData[oamIndex + 1];
+                var attributes = ppu.OamData[oamIndex + 2];
+                var xPosition = ppu.OamData[oamIndex + 3];
+
+                if (yPosition == 0 && xPosition == 0 && tileIndex == 0 && attributes == 0) {
+                    oamIndex += 4;
+                    continue;
+                }
+
+                var paletteVal = attributes & 0b11;
+                var priority = (attributes >> 5 & 1) == 1;
+                var flipHorizontal = (attributes >> 6 & 1) == 1;
+                var flipVertical = (attributes >> 7 & 1) == 1;
+
+
+                var palette = ppu.GetSpritePalette((byte)paletteVal);
+                if (spriteSize == 8) {
+                    var spriteBank = ppu.GetSpritePatternAddr();
+                    var sprite = ppu.ChrRom[(spriteBank + tileIndex * 16)..(spriteBank + tileIndex * 16 + 16)];
+
+                    //Console.WriteLine("");
+                    for (var y = 0; y <= 7; y++) {
+                        byte pixelY = (byte)(yPosition + y);
+                        if (flipVertical) {
+                            pixelY = (byte)(yPosition + 7 - y);
+                        }
+
+                        var upper = sprite[y];
+                        var lower = sprite[y + 8];
+
+                        //Console.WriteLine(Convert.ToString(upper | lower, 2).PadLeft(8, '0'));
+
+                        if (pixelY != scanline) {
+                            continue;
+                        }
+
+                        for (var x = 7; x >= 0; x--) {
+                            var value = (1 & lower) << 1 | (1 & upper);
+                            upper = (byte)(upper >> 1);
+                            lower = (byte)(lower >> 1);
+                            (byte r, byte g, byte b) color;
+                            switch (value) {
+                                case 0: // Should be transparent
+                                    continue;
+                                case 1:
+                                    color = Palette.SystemPalette[palette[1]];
+                                    break;
+                                case 2:
+                                    color = Palette.SystemPalette[palette[2]];
+                                    break;
+                                case 3:
+                                    color = Palette.SystemPalette[palette[3]];
+                                    break;
+                                default: throw new Exception("Something fucky");
+                            };
+                            switch(flipHorizontal, flipVertical) {
+                                case (false, false):
+                                    SetPixel(xPosition + x, yPosition + y, color);
+                                    break;
+                                case (true, false):
+                                    SetPixel(xPosition + 7 - x, yPosition + y, color);
+                                    break;
+                                case (false, true):
+                                    SetPixel(xPosition + x, yPosition + 7 - y, color);
+                                    break;
+                                case (true, true):
+                                    SetPixel(xPosition + 7 - x, yPosition + 7 - y, color);
+                                    break;
+                            }
+                        }
+                    }
+                } else { // 8x16 sprites
+                    var bankAddr = (tileIndex & 1) == 1;
+                    var spriteAddr = bankAddr ? 0x1000 : 0;
+                    var tileNumber = tileIndex >> 1;
+                    // TODO: Finish the rest of the owl
+                    throw new NotImplementedException("8x16 Sprites aren't supported yet");
+                }
+
+                oamIndex += 4;
+            }
+
             return true;
         }
     }

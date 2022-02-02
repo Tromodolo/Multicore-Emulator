@@ -151,6 +151,10 @@ namespace NesEmu.PPU {
             return Ctrl.GetSpritePatternAddr();
         }
 
+        public byte GetSpriteSize() {
+            return Ctrl.GetSpriteSize();
+        }
+
         public void WriteCtrl(byte value) {
             var beforeNmi = Ctrl.ShouldGenerateVBlank();
             Ctrl.Update(value);
@@ -258,6 +262,13 @@ namespace NesEmu.PPU {
             OamAddr = value;
         }
 
+        public void WriteDMA(byte[] data) {
+            foreach (var b in data) {
+                OamData[OamAddr] = b;
+                OamAddr++;
+            }
+        }
+
         public byte[] GetNametableTilePalette(byte tileX, byte tileY) {
             var attrTableIndex = tileY / 4 * 8 + tileX / 4;
             var attrValue = Vram[0x3c0 + attrTableIndex];
@@ -280,6 +291,16 @@ namespace NesEmu.PPU {
                 PaletteTable[paletteStart + 1],
                 PaletteTable[paletteStart + 2],
             };
-        } 
+        }
+
+        public byte[] GetSpritePalette(byte spriteIndex) {
+            var paletteStart = 17 + (spriteIndex * 4);
+            return new byte[] {
+                0,
+                PaletteTable[paletteStart],
+                PaletteTable[paletteStart + 1],
+                PaletteTable[paletteStart + 2],
+            };
+        }
     }
 }
