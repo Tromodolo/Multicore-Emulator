@@ -288,7 +288,6 @@ namespace NesEmu {
                     var spriteBank = ppu.GetSpritePatternAddr();
                     var sprite = ppu.ChrRom[(spriteBank + tileIndex * 16)..(spriteBank + tileIndex * 16 + 16)];
 
-                    //Console.WriteLine("");
                     for (var y = 0; y <= 7; y++) {
                         byte pixelY = (byte)(yPosition + y);
                         if (flipVertical) {
@@ -297,8 +296,6 @@ namespace NesEmu {
 
                         var upper = sprite[y];
                         var lower = sprite[y + 8];
-
-                        //Console.WriteLine(Convert.ToString(upper | lower, 2).PadLeft(8, '0'));
 
                         if (pixelY != scanline) {
                             continue;
