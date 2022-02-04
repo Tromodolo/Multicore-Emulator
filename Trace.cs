@@ -1,7 +1,6 @@
 ﻿using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -9,7 +8,7 @@ namespace NesEmu {
     public static class Trace {
         public static string Log(NesCpu cpu) {
             var opcode = cpu.MemRead(cpu.ProgramCounter);
-            var op = OpCodeList.OpCodes.FirstOrDefault(x => x.Code == opcode);
+            var op = OpCodeList.OpCodes[opcode];
             if (op == null) {
                 return "";
             }
@@ -134,7 +133,9 @@ namespace NesEmu {
                 }
             }
 
-            sb.Append(string.Join(" ", hexDump.Select(x => x.ToString("X2"))));
+            foreach (var b in hexDump) {
+                sb.Append(b.ToString("X2"));
+            }
 
             // This is a really stupid way of making sure stuff lines up but I cannot be bothered atm
             var diff = 3 - hexDump.Count;

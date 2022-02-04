@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 namespace NesEmu.CPU {
     public partial class NesCpu {
         OpCode GetOpFromByte(byte value) {
-            return OpCodeList.OpCodes.FirstOrDefault(x => x.Code == value);
+            return OpCodeList.OpCodes[value];
         }
 
         bool IsPageCross(ushort addr, ushort addr2) {

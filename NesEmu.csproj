@@ -11,6 +11,9 @@
     <None Update="cpu_interrupts.nes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="iceclimber.nes">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="nestest-clean.log">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
