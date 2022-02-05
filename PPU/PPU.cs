@@ -14,22 +14,43 @@ namespace NesEmu.PPU {
         public byte[] OamData { get; private set; }
         public byte OamAddr { get; private set; }
         public ScreenMirroring Mirroring { get; private set; }
-        public ulong CurrentCycle { get; private set; }
-        public ushort CurrentScanline { get; set; }
+        public int DotsDrawn { get; private set; }
+        public int CurrentScanline { get; set; }
         public ulong TotalCycles { get; set; }
 
 
         byte InternalDataBuffer;
         MaskRegister Mask;
-        AddrRegister Addr;
         ControlRegister Ctrl;
-        ScrollRegister Scroll;
         StatusRegister Status;
 
         bool NmiInterrupt;
 
         uint[] FrameBuffer = new uint[256 * 240];
         bool[] BgIsOpaque = new bool[256 * 240];
+
+        // Handling these is an absolute nightmare
+        // https://wiki.nesdev.org/w/index.php/PPU_scrolling
+        // https://www.youtube.com/watch?v=-THeUXqR3zY
+        // https://github.com/OneLoneCoder/olcNES/blob/master/Part%20%234%20-%20PPU%20Backgrounds/olc2C02.cpp
+        Loopy T_Loopy;
+        Loopy V_Loopy;
+        byte fineX = 0;
+
+        //// Used when setting/updating T and V
+        bool WriteLatch = false;
+
+        byte BgTileNo = 0;
+
+        byte BgNextTileId,
+             BgNextTileAttribute,
+             BgNextTileLsb,
+             BgNextTileMsb;
+
+        ushort BgShifterPatternLo,
+               BgShifterPatternHi,
+               BgShifterAttributeLo,
+               BgShifterAttributeHi;
 
         public PPU(byte[] chrRom, ScreenMirroring mirroring) {
             ChrRom = chrRom;
@@ -41,19 +62,21 @@ namespace NesEmu.PPU {
 
             InternalDataBuffer = 0;
             Mask = new MaskRegister();
-            Addr = new AddrRegister();
             Ctrl = new ControlRegister();
-            Scroll = new ScrollRegister();
             Status = new StatusRegister();
 
-            TotalCycles = 7;
-            CurrentScanline = 0;
-            CurrentCycle = 21;
+            TotalCycles = 0;
+            CurrentScanline = -1;
+            DotsDrawn = 0;
             NmiInterrupt = false;
+
+            T_Loopy = new Loopy();
+            V_Loopy = new Loopy();
         }
 
+
         void IncrementVramAddr() {
-            Addr.Increment(Ctrl.GetVramAddrIncrement());
+            V_Loopy.Increment(Ctrl.GetVramAddrIncrement());
         }
 
         // Horizontal:
@@ -94,39 +117,118 @@ namespace NesEmu.PPU {
             return nameTableAddr;
         }
 
-
-
         public bool IncrementCycle(ulong cycleCount) {
-            CurrentCycle += cycleCount;
             TotalCycles += cycleCount / 3;
 
-            if (CurrentCycle >= 341) {
-                Status.SetSpriteZeroHit(false);
-                //if (IsSpriteZeroHit(cycleCount)) {
-                //    Status.SetSpriteZeroHit(true);
-                //}
+            for (var i = cycleCount; i > 0; i--) {
+                if (CurrentScanline >= -1 && CurrentScanline < 240) {
+                    if (CurrentScanline == 0 && DotsDrawn == 0) {
+                        DotsDrawn = 1;
+                    }
 
-                CurrentCycle -= 341;
-                CurrentScanline++;
+                    if (CurrentScanline == -1 && DotsDrawn == 1) {
+                        Status.SetVBlank(false);
+                    }
 
-                if (CurrentScanline == 241) {
+                    //  || (DotsDrawn >= 321 && DotsDrawn < 341)
+                    if ((DotsDrawn >= 2 && DotsDrawn < 258)) {
+                        UpdateShifters();
+
+                        switch ((DotsDrawn - 1) % 8) {
+                            case 0:
+                                LoadBackgroundShifters();
+                                BgTileNo = (byte)(V_Loopy.GetAddress() & 0x0FFF);
+                                BgNextTileId = Vram[MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF)))];
+                                break;
+                            case 2:
+                                BgNextTileAttribute = Vram[
+                                    MirrorVramAddr((ushort)(0x23c0 |
+                                    ((V_Loopy.Nametable & 0b10) << 11) |
+                                    ((V_Loopy.Nametable & 1) << 10) |
+                                    ((V_Loopy.CoarseY >> 2) << 3) |
+                                    (V_Loopy.CoarseX >> 2)))
+                                ];
+
+                                if ((V_Loopy.CoarseY & 0x02) != 0) {
+                                    BgNextTileAttribute >>= 4;
+                                }
+                                if ((V_Loopy.CoarseX & 0x02) != 0) {
+                                    BgNextTileAttribute >>= 2;
+                                }
+                                BgNextTileAttribute &= 0x03;
+                                break;
+                            case 4:
+                                BgNextTileLsb = ChrRom[Ctrl.GetBackgroundPatternAddr() + (BgNextTileId * 16) + V_Loopy.FineY];
+                                break;
+                            case 6:
+                                BgNextTileMsb = ChrRom[Ctrl.GetBackgroundPatternAddr() + (BgNextTileId * 16) + V_Loopy.FineY + 8];
+                                break;
+                            case 7:
+                                IncrementScrollX();
+                                break;
+                        }
+                    }
+
+                    if (DotsDrawn == 256) {
+                        IncrementScrollY();
+                    }
+
+                    if (DotsDrawn == 257) {
+                        LoadBackgroundShifters();
+                        ResetAddressX();
+                    }
+
+                    if (DotsDrawn == 338 || DotsDrawn == 340) {
+                        BgNextTileId = Vram[MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF)))];
+                    }
+
+                    if (DotsDrawn >= 280 && DotsDrawn < 305 && CurrentScanline == -1) {
+                        ResetAddressY();
+                    }
+                }
+
+                if (CurrentScanline == 240) {
+                    // Nothing?
+                }
+
+                if (CurrentScanline == 241 && DotsDrawn == 1) {
                     Status.SetVBlank(true);
-                    //Status.SetSpriteZeroHit(false);
                     if (Ctrl.ShouldGenerateVBlank()) {
                         NmiInterrupt = true;
                     }
                 }
 
-                if (CurrentScanline >= 262) {
-                    CurrentScanline = 0;
-                    //Status.SetSpriteZeroHit(false);
-                    Status.ResetVBlank();
-                    NmiInterrupt = false;
-                    return true;
+                //&& DotsDrawn >= 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240
+                if (Mask.GetBackground() && DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240) {
+                    ushort bitMux = (ushort)(0x8000 >> fineX);
+
+                    byte p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
+                    byte p1Pixel = (byte)((BgShifterPatternHi & bitMux) > 0 ? 1 : 0);
+                    byte bgPixel = (byte)((p1Pixel << 1) | p0Pixel);
+
+                    byte p0Palette = (byte)((BgShifterAttributeLo & bitMux) > 0 ? 1 : 0);
+                    byte p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
+                    byte bgPalette = (byte)((p1Palette << 1) | p0Palette);
+
+                    SetPixel(DotsDrawn - 1, CurrentScanline - 1, GetPaletteFromMemory(bgPalette, bgPixel));
+                }
+
+                DotsDrawn++;
+                if (DotsDrawn >= 341) {
+                    DotsDrawn = 0;
+                    CurrentScanline++;
+                    if (CurrentScanline >= 261) {
+                        CurrentScanline = -1;
+                        Status.ResetVBlank();
+                        NmiInterrupt = false;
+                        return true;
+                    }
                 }
             }
             return false;
         }
+
+
 
         private bool IsSpriteZeroHit(ulong cycle) {
             var y = OamData[0];
@@ -162,6 +264,8 @@ namespace NesEmu.PPU {
         }
 
         public void WriteCtrl(byte value) {
+            T_Loopy.Nametable = (byte)(value & 0b11);
+
             var beforeNmi = Ctrl.ShouldGenerateVBlank();
             Ctrl.Update(value);
             if (!beforeNmi && Ctrl.ShouldGenerateVBlank() && Status.IsVBlank()) {
@@ -174,20 +278,118 @@ namespace NesEmu.PPU {
             Mask.Update(value);
         }
 
-        public (byte x, byte y) GetScroll() {
-            return (Scroll.GetX(), Scroll.GetY());
+        private void IncrementScrollX() {
+            if (Mask.GetSprite() || Mask.GetBackground()) {
+                if (V_Loopy.CoarseX == 31) {
+                    V_Loopy.CoarseX = 0;
+
+                    // Flip the X bit
+                    V_Loopy.Nametable ^= 1;
+                } else {
+                    V_Loopy.CoarseX++;
+                }
+            }
+        }
+
+        private void IncrementScrollY() {
+            if (Mask.GetSprite() || Mask.GetBackground()) {
+                if (V_Loopy.FineY < 7) {
+                    V_Loopy.FineY++;
+                } else {
+                    V_Loopy.FineY = 0;
+
+                    if (V_Loopy.CoarseY == 29) {
+                        V_Loopy.CoarseY = 0;
+                        // Flip the Y bit
+                        V_Loopy.Nametable ^= 0b10;
+                    } else if (V_Loopy.CoarseY == 31) {
+                        V_Loopy.CoarseY = 0;
+                    } else {
+                        V_Loopy.CoarseY++;
+                    }
+                }
+            }
+        }
+
+        private void ResetAddressX() {
+            if (Mask.GetSprite() || Mask.GetBackground()) {
+                V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b10) | (T_Loopy.Nametable & 0b1));
+
+                V_Loopy.CoarseX = T_Loopy.CoarseX;
+            }
+        }
+
+        private void ResetAddressY() {
+            if (Mask.GetSprite() || Mask.GetBackground()) {
+                V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b1) | (T_Loopy.Nametable & 0b10));
+                V_Loopy.FineY = T_Loopy.FineY;
+                V_Loopy.CoarseY = T_Loopy.CoarseY;
+            }
+        }
+
+        private void LoadBackgroundShifters() {
+            BgShifterPatternLo = (ushort)((BgShifterPatternLo & 0xFF00) | BgNextTileLsb);
+            BgShifterPatternHi = (ushort)((BgShifterPatternHi & 0xFF00) | BgNextTileMsb);
+
+            var attributeLo = BgNextTileAttribute & 0b01;
+            var attributeHi = BgNextTileAttribute & 0b10;
+
+            if (attributeLo != 0) {
+                BgShifterAttributeLo = (ushort)((BgShifterAttributeLo & 0xFF00) | 0xFF);
+            } else {
+                BgShifterAttributeLo = (ushort)((BgShifterAttributeLo & 0xFF00));
+            }
+            if (attributeHi != 0) {
+                BgShifterAttributeHi = (ushort)((BgShifterAttributeHi & 0xFF00) | 0xFF);
+            } else {
+                BgShifterAttributeHi = (ushort)((BgShifterAttributeHi & 0xFF00));
+            }
+        }
+
+        private void UpdateShifters() {
+            if (Mask.GetBackground()) {
+                BgShifterAttributeLo <<= 1;
+                BgShifterAttributeHi <<= 1;
+                BgShifterPatternLo <<= 1;
+                BgShifterPatternHi <<= 1;
+            }
+        }
+
+        private (byte r, byte g, byte b) GetPaletteFromMemory(byte palette, byte pixel) {
+            return Palette.SystemPalette[PaletteTable[(palette << 2) + pixel] & 0x3f];
         }
 
         public void WriteScroll(byte value) {
-            Scroll.Update(value);
+            if (WriteLatch) {
+                var coarseY = value >> 3;
+                var fineY = value & 0b111;
+
+                T_Loopy.CoarseY = (byte)coarseY;
+                T_Loopy.FineY = (byte)fineY;
+
+                WriteLatch = false;
+            } else {
+                fineX = (byte)(value & 0b111);
+                var coarseX = value >> 3;
+                T_Loopy.CoarseX = (byte)coarseX;
+
+                WriteLatch = true;
+            }
         }
 
         public void WritePPUAddr(byte value) {
-            Addr.Update(value);
+            if (WriteLatch) {
+                T_Loopy.Update((ushort)((T_Loopy.GetAddress() & 0xFF00) | value));
+                V_Loopy = T_Loopy;
+                WriteLatch = false;
+            } else {
+                T_Loopy.Update((ushort)(((value & 0x3f) << 8) | (T_Loopy.GetAddress() & 0x00ff)));
+                WriteLatch = true;
+            }
         }
 
         public byte GetData() {
-            var addr = Addr.Get();
+            var addr = V_Loopy.GetAddress();
             IncrementVramAddr();
 
             if (addr >= 0 && addr <= 0x1fff) {
@@ -219,37 +421,43 @@ namespace NesEmu.PPU {
         }
 
         public void WriteData(byte value) {
-            var addr = Addr.Get();
+            var addr = V_Loopy.GetAddress();
+            IncrementVramAddr();
+
             if (addr >= 0 && addr <= 0x1fff) {
                 ChrRom[addr] = value;
+                return;
             }
 
             if (addr >= 0x2000 && addr <= 0x2fff) {
                 var mirror = MirrorVramAddr(addr);
                 Vram[mirror] = value;
+                return;
             }
 
+            var binary = Convert.ToString(addr, 2);
             if (addr >= 0x3000 && addr <= 0x3eff) {
                 //Console.WriteLine("0x3000 > x 0x3eff being used");
-                ////throw new NotImplementedException("Shouldn't be used");
+                //throw new NotImplementedException("Shouldn't be used");
+                return;
             }
+
 
             if (addr == 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
                 PaletteTable[(addr - 0x10) - 0x3f00] = value;
+                return;
             }
 
             if (addr >= 0x3f00 && addr <= 0x3fff) {
                 PaletteTable[addr - 0x3f00] = value;
+                return;
             }
-
-            IncrementVramAddr();
         }
 
         public byte GetStatus() {
             var status = Status.GetSnapshot();
             Status.ResetVBlank();
-            Addr.ResetLatch();
-            Scroll.ResetLatch();
+            WriteLatch = false;
             return status;
         }
 
@@ -340,7 +548,7 @@ namespace NesEmu.PPU {
         }
 
         private void SetPixel(int x, int y, (byte r, byte g, byte b) color) {
-            if (x < 0 || x > 255 || y < 0 || y > 240) {
+            if (x < 0 || x > 255 || y < 0 || y >= 240) {
                 return;
             }
 
@@ -355,63 +563,10 @@ namespace NesEmu.PPU {
                 return false;
             }
 
-            var scroll = GetScroll();
-            var mirroring = Mirroring;
-            var nametableAddr = GetNameTableAddress();
-
-            byte[] primary = { };
-            byte[] secondary = { };
-
-            if (mirroring == Rom.ScreenMirroring.Vertical) {
-                if (nametableAddr == 0x2000 || nametableAddr == 0x2400) {
-                    primary = Vram[0..0x400];
-                    secondary = Vram[0x400..0x800];
-                } else if (nametableAddr == 0x2800 || nametableAddr == 0x2C00) {
-                    primary = Vram[0x400..0x800];
-                    secondary = Vram[0..0x400];
-                }
-            } else if (mirroring == Rom.ScreenMirroring.Horizontal) {
-                if (nametableAddr == 0x2000 || nametableAddr == 0x2800) {
-                    primary = Vram[0..0x400];
-                    secondary = Vram[0x400..0x800];
-                } else if (nametableAddr == 0x2400 || nametableAddr == 0x2C00) {
-                    primary = Vram[0x400..0x800];
-                    secondary = Vram[0..0x400];
-                }
-            } else {
-                throw new NotImplementedException("Four Screen mirroring is not supported");
-            }
-
-            if (Mask.GetBackground()) {
-                Viewport viewport;
-                viewport.x0 = scroll.x;
-                viewport.x1 = 255;
-                viewport.y0 = scroll.y;
-                viewport.y1 = 239;
-
-                RenderNametable(primary, scanline, viewport, -scroll.x, -scroll.y);
-
-                if (scroll.x > 0) {
-                    viewport.x0 = 0;
-                    viewport.x1 = scroll.x;
-                    viewport.y0 = 0;
-                    viewport.y1 = 239;
-
-                    RenderNametable(secondary, scanline, viewport, 255 - scroll.x, 0);
-                } else if (scroll.y > 0) {
-                    viewport.x0 = 0;
-                    viewport.x1 = 255;
-                    viewport.y0 = 0;
-                    viewport.y1 = scroll.y;
-
-                    RenderNametable(secondary, scanline, viewport, 0, 239 - scroll.y);
-                }
-            }
-
             if (Mask.GetSprite()) {
                 var isSpriteZero = true;
                 var spriteSize = GetSpriteSize();
-                for (var i = 0; i <= 63; i++) {             
+                for (var i = 0; i <= 63; i++) {
                     var yPosition = OamData[i * 4];
                     var tileIndex = OamData[(i * 4) + 1];
                     var attributes = OamData[(i * 4) + 2];
@@ -458,9 +613,9 @@ namespace NesEmu.PPU {
                             var upper = sprite[y];
                             var lower = sprite[y + 8];
 
-                            if (pixelY != scanline) {
-                                continue;
-                            }
+                            //if (pixelY != scanline) {
+                            //    continue;
+                            //}
 
                             for (var x = 7; x >= 0; x--) {
                                 byte pixelX = (byte)(xPosition + x);
@@ -499,16 +654,16 @@ namespace NesEmu.PPU {
                                 }
                                 switch (flipHorizontal, flipVertical) {
                                     case (false, false):
-                                        SetPixel(xPosition + x, yPosition + y, color);
+                                        SetPixel(xPosition + x + 16, yPosition + y, color);
                                         break;
                                     case (true, false):
-                                        SetPixel(xPosition + 7 - x, yPosition + y, color);
+                                        SetPixel(xPosition + 23 - x, yPosition + y, color);
                                         break;
                                     case (false, true):
-                                        SetPixel(xPosition + x, yPosition + 7 - y, color);
+                                        SetPixel(xPosition + x + 16, yPosition + 7 - y, color);
                                         break;
                                     case (true, true):
-                                        SetPixel(xPosition + 7 - x, yPosition + 7 - y, color);
+                                        SetPixel(xPosition + 23 - x, yPosition + 7 - y, color);
                                         break;
                                 }
                             }
@@ -526,79 +681,6 @@ namespace NesEmu.PPU {
             }
 
             return true;
-        }
-
-        public struct Viewport {
-            public int x0;
-            public int x1;
-            public int y0;
-            public int y1;
-        }
-
-        private void RenderNametable(byte[] nametable, int scanline, Viewport vp, int shiftX, int shiftY) {
-            var bank = GetBackgroundPatternAddr();
-            var leftColumnEnable = Mask.GetBackgroundLeftColumn();
-
-            if (vp.x0 <= 7 && !leftColumnEnable) {
-                vp.x0 = 8;
-            }
-
-            for (var tileIndex = 0; tileIndex < 0x3c0; tileIndex++) {
-                var tileAddr = nametable[tileIndex];
-                var tile_x = tileIndex % 32;
-                var tile_y = tileIndex / 32;
-
-                if (!(scanline >= tile_y * 8 && scanline <= (tile_y * 8) + 8)) {
-                    continue;
-                }
-
-                var palette = GetNametableTilePalette(nametable, (byte)tile_x, (byte)tile_y);
-                var tile = ChrRom[(bank + tileAddr * 16)..(bank + tileAddr * 16 + 16)];
-
-                for (var y = 0; y <= 7; y++) {
-                    var pixelY = tile_y * 8 + y;
-                    var upper = tile[y];
-                    var lower = tile[y + 8];
-
-                    if (pixelY != scanline || vp.y0 > pixelY || vp.y1 < pixelY) {
-                        continue;
-                    }
-
-                    for (var x = 7; x >= 0; x--) {
-                        var pixelX = tile_x * 8 + x;
-
-                        if (vp.x0 > pixelX || vp.x1 < pixelX) {
-                            continue;
-                        }
-
-                        var value = (1 & lower) << 1 | (1 & upper);
-                        upper = (byte)(upper >> 1);
-                        lower = (byte)(lower >> 1);
-                        (byte r, byte g, byte b) color;
-                        switch (value) {
-                            case 0:
-                                color = Palette.SystemPalette[palette[0]];
-                                BgIsOpaque[pixelX + shiftX + ((pixelY + shiftY) * 256)] = true;
-                                break;
-                            case 1:
-                                color = Palette.SystemPalette[palette[1]];
-                                BgIsOpaque[pixelX + shiftX + ((pixelY + shiftY) * 256)] = false;
-                                break;
-                            case 2:
-                                color = Palette.SystemPalette[palette[2]];
-                                BgIsOpaque[pixelX + shiftX + ((pixelY + shiftY) * 256)] = false;
-                                break;
-                            case 3:
-                                color = Palette.SystemPalette[palette[3]];
-                                BgIsOpaque[pixelX + shiftX + ((pixelY + shiftY) * 256)] = false;
-                                break;
-                            default: throw new Exception("Something fucky");
-                        };
-
-                        SetPixel(pixelX + shiftX, pixelY + shiftY, color);
-                    }
-                }
-            }
         }
     }
 }

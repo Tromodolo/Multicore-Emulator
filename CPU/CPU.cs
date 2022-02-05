@@ -66,7 +66,7 @@ namespace NesEmu.CPU {
                 }
 #endif
 
-                if ((Bus.UnprocessedCycles * 3) + Bus.PPU.CurrentCycle >= 341) {
+                if ((Bus.UnprocessedCycles * 3) + Bus.PPU.DotsDrawn >= 341) {
                     Bus.FastForwardPPU();
                     break;
                 }

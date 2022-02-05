@@ -11,13 +11,11 @@ using System.Linq;
 
 namespace NesEmu {
     class Program {
-        static Random rng;
         static string fileName;
         static NesCpu cpu;
         static UInt64 currentFrame = 0;
 
         static IntPtr Texture;
-        static IntPtr DebugViewTexture;
 
         static void Main(string[] args){
             // Initilizes SDL.
@@ -63,7 +61,6 @@ namespace NesEmu {
             cpu = new NesCpu(rom);
 
             var running = true;
-            var lastScanline = 0;
             currentFrame = 0;
             Stopwatch sw = new Stopwatch();
             Stopwatch frameSync = new Stopwatch();
@@ -91,32 +88,29 @@ namespace NesEmu {
                     }
                 }
 
-                if (currentFrame % 60 == 0 && currentFrame != 0) {
-                    sw.Stop();
-                    currentFrame = 0;
-                    var framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
-                    windowTitle = $"Playing {fileName} - FPS: {Math.Round(framerate, 2)}";
-                    SDL.SDL_SetWindowTitle(window, windowTitle);
-                    sw.Restart();
-                }
-                
-                var scanline = cpu.RunScanline();
-                cpu.Bus.PPU.RenderScanline(scanline);
+                do {
+                    cpu.ExecuteInstruction();
+                } while (!cpu.Bus.PollDrawFrame());
 
                 if (cpu.Bus.GetDrawFrame()) {
                     currentFrame++;
                     cpu.Bus.PPU.DrawFrame(ref renderer, ref Texture);
 
-                    while (frameSync.ElapsedTicks < 16.6 * 10000) {
+                    while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
                         continue;
                     }
-                    //do {
-                    //    Thread.Sleep(1);
-                    //} while (frameSync.ElapsedMilliseconds < 16);
+
+                    if (currentFrame % 60 == 0 && currentFrame != 0) {
+                        sw.Stop();
+                        currentFrame = 0;
+                        var framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
+                        windowTitle = $"Playing {fileName} - FPS: {Math.Round(framerate, 2)}";
+                        SDL.SDL_SetWindowTitle(window, windowTitle);
+                        sw.Restart();
+                    }
 
                     frameSync.Restart();
                 }
-                lastScanline = scanline;
             }
 
             // Clean up the resources that were created.

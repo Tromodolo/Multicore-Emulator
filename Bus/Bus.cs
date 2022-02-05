@@ -1,9 +1,10 @@
-using NesEmu.PPU;
+﻿using NesEmu.PPU;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace NesEmu.Bus {
@@ -52,11 +53,14 @@ namespace NesEmu.Bus {
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;
             CycleCount = 0;
-
         }
 
         public bool GetNmiStatus() {
             return PPU.GetInterrupt();
+        }
+
+        public bool PollDrawFrame() {
+            return IsNewFrame;
         }
 
         public bool GetDrawFrame() {
@@ -76,10 +80,10 @@ namespace NesEmu.Bus {
             return PrgRom[address];
         }
 
-        public UInt64 UnprocessedCycles { get; set; }
+        public int UnprocessedCycles{ get; set; }
 
         public void TickPPUCycles(byte cycleCount) {
-#if NESTEST
+//#if NESTEST
             CycleCount += cycleCount;
 
             // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
@@ -87,27 +91,29 @@ namespace NesEmu.Bus {
             if (isNewFrame) {
                 IsNewFrame = isNewFrame;
             }
-#else
-            UnprocessedCycles += cycleCount;
-#endif
+//#else
+//            UnprocessedCycles += cycleCount;
+//#endif
 
         }
 
         public void FastForwardPPU() {
-#if !NESTEST
-            while (UnprocessedCycles > 0) {
-                var toProcess = UnprocessedCycles >= 60 ? 60 : UnprocessedCycles;
-                CycleCount += toProcess;
+            //#if !NESTEST
+            //            while (UnprocessedCycles > 0) {
+            //                //var toProcess = UnprocessedCycles >= 1 ? 1 : UnprocessedCycles;
+            //                //toProcess
+            //                CycleCount += 1;
 
-                // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
-                var isNewFrame = PPU.IncrementCycle((ulong)(toProcess * 3));
-                if (isNewFrame) {
-                    IsNewFrame = isNewFrame;
-                }
+            //                // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
+            //                var isNewFrame = PPU.IncrementCycle((ulong)(1 * 3));
+            //                if (isNewFrame) {
+            //                    IsNewFrame = isNewFrame;
+            //                }
 
-                UnprocessedCycles -= toProcess;
-            }
-#endif
+            //                UnprocessedCycles -= 1;
+            //            }
+            //#endif
+            //        }
         }
 
         public void DumpPPUMemory() {
