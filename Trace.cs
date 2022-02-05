@@ -152,7 +152,7 @@ namespace NesEmu {
             // Registers
             sb.Append($"A:{cpu.Accumulator:X2} X:{cpu.RegisterX:X2} Y:{cpu.RegisterY:X2} P:{(int)cpu.Status:X2} SP:{cpu.StackPointer:X2}");
 
-            sb.Append($" PPU:{cpu.Bus.PPU.CurrentScanline.ToString().PadLeft(3, ' ')},{cpu.Bus.PPU.CurrentCycle.ToString().PadLeft(3, ' ')} CYC:{cpu.Bus.PPU.TotalCycles}\r\n");
+            //sb.Append($" PPU:{cpu.Bus.PPU.CurrentScanline.ToString().PadLeft(3, ' ')},{cpu.Bus.PPU.CurrentCycle.ToString().PadLeft(3, ' ')} CYC:{cpu.Bus.PPU.TotalCycles}\r\n");
 
             var trace = sb.ToString();
             return trace;
