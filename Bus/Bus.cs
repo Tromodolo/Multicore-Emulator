@@ -1,6 +1,7 @@
-﻿using NesEmu.PPU;
+using NesEmu.PPU;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -104,9 +105,41 @@ namespace NesEmu.Bus {
                     IsNewFrame = isNewFrame;
                 }
 
-                UnprocessedCycles -= toProcess;
-            }
-#endif
+        public void DumpPPUMemory() {
+            var ChrRom = PPU.ChrRom;
+            var Vram = PPU.Vram;
+            var palette = PPU.PaletteTable;
+
+            var chrFile = File.OpenWrite("chr.dump.txt");
+            var vramFile = File.OpenWrite("vram.dump.txt");
+            var paletteFile = File.OpenWrite("palete.dump.txt");
+
+            chrFile.Write(
+                Encoding.ASCII.GetBytes(string.Join(
+                    ", ",
+                    ChrRom.Select(x => x.ToString("X")).ToArray()
+                ))
+            );
+            chrFile.Flush();
+            chrFile.Close();
+
+            vramFile.Write(
+                Encoding.ASCII.GetBytes(string.Join(
+                    ", ",
+                    Vram.Select(x => x.ToString("X")).ToArray()
+                ))
+            );
+            vramFile.Flush();
+            vramFile.Close();
+
+            paletteFile.Write(
+                Encoding.ASCII.GetBytes(string.Join(
+                    ", ",
+                    palette.Select(x => x.ToString("X")).ToArray()
+                ))
+            );
+            paletteFile.Flush();
+            paletteFile.Close();
         }
     }
 }
