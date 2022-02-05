@@ -76,7 +76,7 @@ namespace NesEmu.Bus {
             return PrgRom[address];
         }
 
-        public UInt64 UnprocessedCycles{ get; set; }
+        public UInt64 UnprocessedCycles { get; set; }
 
         public void TickPPUCycles(byte cycleCount) {
 #if NESTEST
@@ -104,6 +104,11 @@ namespace NesEmu.Bus {
                 if (isNewFrame) {
                     IsNewFrame = isNewFrame;
                 }
+
+                UnprocessedCycles -= toProcess;
+            }
+#endif
+        }
 
         public void DumpPPUMemory() {
             var ChrRom = PPU.ChrRom;
