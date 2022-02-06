@@ -37,7 +37,7 @@ namespace NesEmu.Rom {
         }
 
         public byte GetVramAddrIncrement() {
-            if (Status.HasFlag(ControlRegisterStatus.VramAddIncrement)) {
+            if (((int)Status & (1 << 2)) > 1) {
                 return 32;
             } else {
                 return 1;
@@ -45,7 +45,7 @@ namespace NesEmu.Rom {
         }
 
         public ushort GetBackgroundPatternAddr() {
-            if (Status.HasFlag(ControlRegisterStatus.BackgroundPatternAddr)) {
+            if (((int)Status & (1 << 4)) > 1) {
                 return 0x1000;
             } else {
                 return 0;
@@ -53,7 +53,7 @@ namespace NesEmu.Rom {
         }
 
         public ushort GetSpritePatternAddr() {
-            if (Status.HasFlag(ControlRegisterStatus.SpritePatternAddr)) {
+            if (((int)Status & (1 << 3)) > 1) {
                 return 0x1000;
             } else {
                 return 0;
@@ -61,7 +61,7 @@ namespace NesEmu.Rom {
         }
 
         public byte GetSpriteSize() {
-            if (Status.HasFlag(ControlRegisterStatus.SpriteSize)) {
+            if (((int)Status & (1 << 5)) > 1) {
                 return 16;
             } else {
                 return 8;
@@ -69,7 +69,7 @@ namespace NesEmu.Rom {
         }
 
         public byte MasterSlaveSelect() {
-            if (Status.HasFlag(ControlRegisterStatus.SpriteSize)) {
+            if (((int)Status & (1 << 6)) > 1) {
                 return 1;
             } else {
                 return 0;
@@ -77,7 +77,7 @@ namespace NesEmu.Rom {
         }
 
         public bool ShouldGenerateVBlank() {
-            return Status.HasFlag(ControlRegisterStatus.GenerateNMI);
+            return ((int)Status & (1 << 7)) > 1;
         }
 
         public void Update(byte data) {

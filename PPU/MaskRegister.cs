@@ -32,19 +32,19 @@ namespace NesEmu.PPU {
         }
 
         public bool GetGreyscale() {
-            return Status.HasFlag(MaskRegisterStatus.Greyscale);
+            return ((int)Status & 1) > 0;
         }
         public bool GetBackgroundLeftColumn() {
-            return Status.HasFlag(MaskRegisterStatus.BackgroundLeftColumnEnable);
+            return ((int)Status & (1 << 1)) > 0;
         }
         public bool GetBackground() {
-            return Status.HasFlag(MaskRegisterStatus.BackgroundEnable);
+            return ((int)Status & (1 << 3)) > 0;
         }
         public bool GetSpriteLeftColumn() {
-            return Status.HasFlag(MaskRegisterStatus.SpriteLeftColumnEnable);
+            return ((int)Status & (1 << 2)) > 0;
         }
         public bool GetSprite() {
-            return Status.HasFlag(MaskRegisterStatus.SpriteEnable);
+            return ((int)Status & (1 << 4)) > 0;
         }
         public IEnumerable<Color> GetEmphasis() {
             var colors = new List<Color>();

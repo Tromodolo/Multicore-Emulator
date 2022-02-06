@@ -14,9 +14,10 @@ namespace NesEmu.PPU {
         public byte[] OamData { get; private set; }
         public byte OamAddr { get; private set; }
         public ScreenMirroring Mirroring { get; private set; }
-        public int DotsDrawn { get; private set; }
-        public int CurrentScanline { get; set; }
-        public ulong TotalCycles { get; set; }
+
+        public int DotsDrawn;
+        public int CurrentScanline;
+        public ulong TotalCycles;
 
 
         byte InternalDataBuffer;
@@ -271,9 +272,9 @@ namespace NesEmu.PPU {
 
                             if (Ctrl.GetSpriteSize() == 8) {
                                 if (flipVertical) {
-                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (7 - (CurrentScanline - sprite.YPosition)));
+                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(7 - (CurrentScanline - sprite.YPosition)));
                                 } else {
-                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (CurrentScanline - sprite.YPosition));
+                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(CurrentScanline - sprite.YPosition));
                                 }
 
                             } else {
@@ -574,7 +575,7 @@ namespace NesEmu.PPU {
         public void WritePPUAddr(byte value) {
             if (WriteLatch) {
                 T_Loopy.Update((ushort)((T_Loopy.GetAddress() & 0xFF00) | value));
-                V_Loopy.Update(T_Loopy.Address);
+                V_Loopy.Update(T_Loopy.GetAddress());
                 WriteLatch = false;
             } else {
                 T_Loopy.Update((ushort)(((value & 0x3f) << 8) | (T_Loopy.GetAddress() & 0x00ff)));

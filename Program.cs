@@ -14,8 +14,8 @@ namespace NesEmu {
         static string fileName;
         static NesCpu cpu;
         static UInt64 currentFrame = 0;
-
         static IntPtr Texture;
+        static bool frameCap = true;
 
         static void Main(string[] args){
             // Initilizes SDL.
@@ -96,9 +96,11 @@ namespace NesEmu {
                     currentFrame++;
                     cpu.Bus.PPU.DrawFrame(ref renderer, ref Texture);
 
-                    //while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
-                    //    continue;
-                    //}
+                    if (frameCap) {
+                        while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
+                            continue;
+                        }
+                    }
 
                     if (currentFrame % 60 == 0 && currentFrame != 0) {
                         sw.Stop();
@@ -123,6 +125,9 @@ namespace NesEmu {
             byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_TAB:
+                    frameCap = false;
+                    break;
                 case SDL.SDL_Keycode.SDLK_r:
                     cpu.Reset();
                     break;
@@ -159,6 +164,9 @@ namespace NesEmu {
             byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_TAB:
+                    frameCap = true;
+                    break;
                 case SDL.SDL_Keycode.SDLK_j:
                     currentKeys &= 0b01111111;
                     break;
