@@ -27,7 +27,7 @@ namespace NesEmu {
             var window = SDL.SDL_CreateWindow("Nes",
                                               SDL.SDL_WINDOWPOS_UNDEFINED,
                                               SDL.SDL_WINDOWPOS_UNDEFINED,
-                                              256 * 3 * 2,
+                                              256 * 3,
                                               240 * 3,
                                               SDL.SDL_WindowFlags.SDL_WINDOW_RESIZABLE | 
                                               SDL.SDL_WindowFlags.SDL_WINDOW_SHOWN);
@@ -93,12 +93,13 @@ namespace NesEmu {
                 } while (!cpu.Bus.PollDrawFrame());
 
                 if (cpu.Bus.GetDrawFrame()) {
+                    cpu.Bus.PPU.RenderScanline();
                     currentFrame++;
                     cpu.Bus.PPU.DrawFrame(ref renderer, ref Texture);
 
-                    while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
-                        continue;
-                    }
+                    //while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
+                    //    continue;
+                    //}
 
                     if (currentFrame % 60 == 0 && currentFrame != 0) {
                         sw.Stop();
@@ -119,18 +120,13 @@ namespace NesEmu {
             SDL.SDL_Quit();
         }
 
-        private static void RenderDebugView (NesCpu cpu) {
-
-        }
-
-        private static void RenderDebugText() { 
-        
-        }
-
         private static void HandleKeyDown(NesCpu cpu, SDL.SDL_KeyboardEvent key) {
             byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
+                case SDL.SDL_Keycode.SDLK_r:
+                    cpu.Reset();
+                    break;
                 case SDL.SDL_Keycode.SDLK_j:
                     currentKeys |= 0b10000000;
                     break;

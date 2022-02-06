@@ -66,7 +66,7 @@ namespace NesEmu.PPU {
             Status = new StatusRegister();
 
             TotalCycles = 0;
-            CurrentScanline = -1;
+            CurrentScanline = 0;
             DotsDrawn = 0;
             NmiInterrupt = false;
 
@@ -122,16 +122,11 @@ namespace NesEmu.PPU {
 
             for (var i = cycleCount; i > 0; i--) {
                 if (CurrentScanline >= -1 && CurrentScanline < 240) {
-                    if (CurrentScanline == 0 && DotsDrawn == 0) {
-                        DotsDrawn = 1;
-                    }
-
                     if (CurrentScanline == -1 && DotsDrawn == 1) {
                         Status.SetVBlank(false);
                     }
 
-                    //  || (DotsDrawn >= 321 && DotsDrawn < 341)
-                    if ((DotsDrawn >= 2 && DotsDrawn < 258)) {
+                    if ((DotsDrawn >= 2 && DotsDrawn < 258) || (DotsDrawn >= 321 && DotsDrawn < 338)) {
                         UpdateShifters();
 
                         switch ((DotsDrawn - 1) % 8) {
@@ -182,7 +177,7 @@ namespace NesEmu.PPU {
                         BgNextTileId = Vram[MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF)))];
                     }
 
-                    if (DotsDrawn >= 280 && DotsDrawn < 305 && CurrentScanline == -1) {
+                    if (CurrentScanline == -1 && DotsDrawn >= 280 && DotsDrawn < 305) {
                         ResetAddressY();
                     }
                 }
@@ -199,7 +194,16 @@ namespace NesEmu.PPU {
                 }
 
                 //&& DotsDrawn >= 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240
-                if (Mask.GetBackground() && DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240) {
+                //  || (CurrentScanline == -1 && DotsDrawn >= 321)
+                if (Mask.GetBackground() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
+                    var pixelX = DotsDrawn - 1;
+                    var pixelY = CurrentScanline - 1;
+
+                    if (CurrentScanline == -1) {
+                        pixelX -= 321;
+                        pixelY = 0;
+                    }
+
                     ushort bitMux = (ushort)(0x8000 >> fineX);
 
                     byte p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
@@ -210,7 +214,12 @@ namespace NesEmu.PPU {
                     byte p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
                     byte bgPalette = (byte)((p1Palette << 1) | p0Palette);
 
-                    SetPixel(DotsDrawn - 1, CurrentScanline - 1, GetPaletteFromMemory(bgPalette, bgPixel));
+                    var color = GetPaletteFromMemory(bgPalette, bgPixel);
+                    if (((bgPalette << 2) + bgPixel) == 0) {
+                        var y = 0;
+                    }
+                    SetPixel(pixelX, pixelY, color);
+
                 }
 
                 DotsDrawn++;
@@ -314,7 +323,6 @@ namespace NesEmu.PPU {
         private void ResetAddressX() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b10) | (T_Loopy.Nametable & 0b1));
-
                 V_Loopy.CoarseX = T_Loopy.CoarseX;
             }
         }
@@ -380,7 +388,7 @@ namespace NesEmu.PPU {
         public void WritePPUAddr(byte value) {
             if (WriteLatch) {
                 T_Loopy.Update((ushort)((T_Loopy.GetAddress() & 0xFF00) | value));
-                V_Loopy = T_Loopy;
+                V_Loopy.Update(T_Loopy.Address);
                 WriteLatch = false;
             } else {
                 T_Loopy.Update((ushort)(((value & 0x3f) << 8) | (T_Loopy.GetAddress() & 0x00ff)));
@@ -435,7 +443,6 @@ namespace NesEmu.PPU {
                 return;
             }
 
-            var binary = Convert.ToString(addr, 2);
             if (addr >= 0x3000 && addr <= 0x3eff) {
                 //Console.WriteLine("0x3000 > x 0x3eff being used");
                 //throw new NotImplementedException("Shouldn't be used");
@@ -558,10 +565,10 @@ namespace NesEmu.PPU {
             ] = (uint)((color.r << 16) | (color.g << 8 | (color.b << 0)));
         }
 
-        public bool RenderScanline(int scanline) {
-            if (scanline >= 240) {
-                return false;
-            }
+        public bool RenderScanline() {
+            //if (scanline >= 240) {
+            //    return false;
+            //}
 
             if (Mask.GetSprite()) {
                 var isSpriteZero = true;
@@ -576,9 +583,9 @@ namespace NesEmu.PPU {
                         xPosition = 8;
                     }
 
-                    if (!(scanline >= yPosition && scanline <= yPosition + 8)) {
-                        continue;
-                    }
+                    //if (!(scanline >= yPosition && scanline <= yPosition + 8)) {
+                    //    continue;
+                    //}
 
                     if (yPosition == 0 && xPosition == 0 && tileIndex == 0 && attributes == 0) {
                         continue;
@@ -595,9 +602,9 @@ namespace NesEmu.PPU {
                         continue;
                     }
 
-                    if (!(yPosition < scanline || scanline < yPosition + 8)) {
-                        continue;
-                    }
+                    //if (!(yPosition < scanline || scanline < yPosition + 8)) {
+                    //    continue;
+                    //}
 
                     var palette = GetSpritePalette((byte)paletteVal);
                     if (spriteSize == 8) {
@@ -654,16 +661,16 @@ namespace NesEmu.PPU {
                                 }
                                 switch (flipHorizontal, flipVertical) {
                                     case (false, false):
-                                        SetPixel(xPosition + x + 16, yPosition + y, color);
+                                        SetPixel(xPosition + x, yPosition + y, color);
                                         break;
                                     case (true, false):
-                                        SetPixel(xPosition + 23 - x, yPosition + y, color);
+                                        SetPixel(xPosition + 7 - x, yPosition + y, color);
                                         break;
                                     case (false, true):
-                                        SetPixel(xPosition + x + 16, yPosition + 7 - y, color);
+                                        SetPixel(xPosition + x, yPosition + 7 - y, color);
                                         break;
                                     case (true, true):
-                                        SetPixel(xPosition + 23 - x, yPosition + 7 - y, color);
+                                        SetPixel(xPosition + 7 - x, yPosition + 7 - y, color);
                                         break;
                                 }
                             }
