@@ -36,11 +36,8 @@ namespace NesEmu.PPU {
         Loopy T_Loopy;
         Loopy V_Loopy;
         byte fineX = 0;
-
         //// Used when setting/updating T and V
         bool WriteLatch = false;
-
-        byte BgTileNo = 0;
 
         byte BgNextTileId,
              BgNextTileAttribute,
@@ -51,6 +48,22 @@ namespace NesEmu.PPU {
                BgShifterPatternHi,
                BgShifterAttributeLo,
                BgShifterAttributeHi;
+
+        byte[] SpriteShifterPatternLo = new byte[8];
+        byte[] SpriteShifterPatternHi = new byte[8];
+
+        struct SpriteEntry {
+            public byte YPosition = 0;
+            public byte XPosition = 0;
+            public byte TileId = 0;
+            public byte Attribute = 0;
+            public bool SpriteZero = false;
+        }
+        List<SpriteEntry> evaluatedSprites = new List<SpriteEntry>();
+        byte spriteCount = 0;
+
+        bool SpriteZeroPossible = false;
+        bool SpriteZeroRendered = false;
 
         public PPU(byte[] chrRom, ScreenMirroring mirroring) {
             ChrRom = chrRom;
@@ -124,6 +137,14 @@ namespace NesEmu.PPU {
                 if (CurrentScanline >= -1 && CurrentScanline < 240) {
                     if (CurrentScanline == -1 && DotsDrawn == 1) {
                         Status.SetVBlank(false);
+
+                        Status.SetSpriteZeroHit(false);
+                        Status.SetSpriteOverflow(false);
+                        SpriteZeroPossible = false;
+                        for (var j = 0; j < 8; j++) {
+                            SpriteShifterPatternLo[j] = 0;
+                            SpriteShifterPatternHi[j] = 0;
+                        }
                     }
 
                     if ((DotsDrawn >= 2 && DotsDrawn < 258) || (DotsDrawn >= 321 && DotsDrawn < 338)) {
@@ -132,7 +153,6 @@ namespace NesEmu.PPU {
                         switch ((DotsDrawn - 1) % 8) {
                             case 0:
                                 LoadBackgroundShifters();
-                                BgTileNo = (byte)(V_Loopy.GetAddress() & 0x0FFF);
                                 BgNextTileId = Vram[MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF)))];
                                 break;
                             case 2:
@@ -180,6 +200,110 @@ namespace NesEmu.PPU {
                     if (CurrentScanline == -1 && DotsDrawn >= 280 && DotsDrawn < 305) {
                         ResetAddressY();
                     }
+
+
+                    // Sprite evaluation
+                    if (DotsDrawn == 257 && CurrentScanline >= 0) {
+                        evaluatedSprites.Clear();
+                        spriteCount = 0;
+
+                        for (var j = 0; j < 8; j++) {
+                            SpriteShifterPatternLo[j] = 0;
+                            SpriteShifterPatternHi[j] = 0;
+                        }
+
+                        var index = 0;
+                        foreach (var oamEntry in OamData) {
+                            if (spriteCount >= 8) {
+                                Status.SetSpriteOverflow(true);
+                                break;
+                            }
+                            if (index >= 64) {
+                                break;
+                            }
+
+                            var yPosition = OamData[index * 4];
+                            var tileIndex = OamData[(index * 4) + 1];
+                            var attributes = OamData[(index * 4) + 2];
+                            var xPosition = OamData[(index * 4) + 3];
+
+                            if (yPosition == 0 && tileIndex == 0 && attributes == 0 && xPosition == 0) {
+                                continue;
+                            }
+
+                            var yDiff = CurrentScanline - yPosition;
+                            if (yDiff >= 0 && yDiff < Ctrl.GetSpriteSize()) {
+                                if (spriteCount < 8) {
+                                    SpriteEntry sprite;
+                                    sprite.YPosition = yPosition;
+                                    sprite.XPosition = xPosition;
+                                    sprite.Attribute = attributes;
+                                    sprite.TileId = tileIndex;
+                                    if (index == 0) {
+                                        sprite.SpriteZero = true;
+                                        SpriteZeroPossible = true;
+                                    } else {
+                                        sprite.SpriteZero = false;
+                                    }
+
+                                    evaluatedSprites.Add(sprite);
+                                    spriteCount++;
+                                } else {
+                                    spriteCount++;
+                                }
+                            }
+
+                            index++;
+                        }
+
+                    } 
+
+                    if (DotsDrawn == 340) {
+                        var spriteIndex = 0;
+                        foreach (var sprite in evaluatedSprites) {
+                            byte patternBitsLo, patternBitsHi;
+                            ushort patternAddrLo, patternAddrHi;
+
+                            var paletteVal = sprite.Attribute & 0b11;
+                            var priority = (sprite.Attribute >> 5 & 1) == 0;
+                            var flipHorizontal = (sprite.Attribute >> 6 & 1) == 1;
+                            var flipVertical = (sprite.Attribute >> 7 & 1) == 1;
+
+                            if (Ctrl.GetSpriteSize() == 8) {
+                                if (flipVertical) {
+                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (7 - (CurrentScanline - sprite.YPosition)));
+                                } else {
+                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (CurrentScanline - sprite.YPosition));
+                                }
+
+                            } else {
+                                // 8x16 pixels
+                                throw new NotImplementedException("Roms with 8x16 sprites are currently not supported");
+                            }
+
+                            patternAddrHi = (ushort)(patternAddrLo + 8);
+                            patternBitsLo = ChrRom[patternAddrLo];
+                            patternBitsHi = ChrRom[patternAddrHi];
+
+                            if (flipHorizontal) {
+                                // https://stackoverflow.com/a/2602885
+                                // What the fuck
+                                patternBitsLo = (byte)((patternBitsLo & 0xF0) >> 4 | (patternBitsLo & 0x0F) << 4);
+                                patternBitsLo = (byte)((patternBitsLo & 0xCC) >> 2 | (patternBitsLo & 0x33) << 2);
+                                patternBitsLo = (byte)((patternBitsLo & 0xAA) >> 1 | (patternBitsLo & 0x55) << 1);
+
+                                patternBitsHi = (byte)((patternBitsHi & 0xF0) >> 4 | (patternBitsHi & 0x0F) << 4);
+                                patternBitsHi = (byte)((patternBitsHi & 0xCC) >> 2 | (patternBitsHi & 0x33) << 2);
+                                patternBitsHi = (byte)((patternBitsHi & 0xAA) >> 1 | (patternBitsHi & 0x55) << 1);
+                            }
+
+                            SpriteShifterPatternLo[spriteIndex] = patternBitsLo;
+                            SpriteShifterPatternHi[spriteIndex] = patternBitsHi;
+
+                            spriteIndex++;
+                        }
+                    } 
+
                 }
 
                 if (CurrentScanline == 240) {
@@ -193,34 +317,92 @@ namespace NesEmu.PPU {
                     }
                 }
 
-                //&& DotsDrawn >= 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240
-                //  || (CurrentScanline == -1 && DotsDrawn >= 321)
+                byte bgPixel = 0;
+                byte bgPalette = 0;
+
+                byte fgPixel = 0;
+                byte fgPalette = 0;
+
+                bool spritePriority = false;
+
                 if (Mask.GetBackground() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
-                    var pixelX = DotsDrawn - 1;
-                    var pixelY = CurrentScanline - 1;
-
-                    if (CurrentScanline == -1) {
-                        pixelX -= 321;
-                        pixelY = 0;
-                    }
-
                     ushort bitMux = (ushort)(0x8000 >> fineX);
 
                     byte p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
                     byte p1Pixel = (byte)((BgShifterPatternHi & bitMux) > 0 ? 1 : 0);
-                    byte bgPixel = (byte)((p1Pixel << 1) | p0Pixel);
+                    bgPixel = (byte)((p1Pixel << 1) | p0Pixel);
 
                     byte p0Palette = (byte)((BgShifterAttributeLo & bitMux) > 0 ? 1 : 0);
                     byte p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
-                    byte bgPalette = (byte)((p1Palette << 1) | p0Palette);
-
-                    var color = GetPaletteFromMemory(bgPalette, bgPixel);
-                    if (((bgPalette << 2) + bgPixel) == 0) {
-                        var y = 0;
-                    }
-                    SetPixel(pixelX, pixelY, color);
-
+                    bgPalette = (byte)((p1Palette << 1) | p0Palette);
                 }
+
+                if (Mask.GetSprite() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
+                    SpriteZeroRendered = false;
+
+                    var index = 0;
+                    foreach (var sprite in evaluatedSprites) {
+                        if (sprite.XPosition == 0) {
+                            var spritePixelLo = (SpriteShifterPatternLo[index] & 0x80) > 0 ? 1 : 0;
+                            var spritePixelHi = (SpriteShifterPatternHi[index] & 0x80) > 0 ? 1 : 0;
+
+                            fgPixel = (byte)((spritePixelHi << 1) | spritePixelLo);
+                            fgPalette = (byte)((sprite.Attribute & 0b11) + 0b100);
+                            spritePriority = (sprite.Attribute & 0x20) == 0;
+
+                            if (fgPixel != 0) {
+                                if (sprite.SpriteZero) {
+                                    SpriteZeroRendered = true;
+                                }
+
+                                // Since sprites are sorted in priority, if we actually find a sprite for the pixel, we can just skip the rest
+                                break;
+                            }
+                        }
+                        index++;
+                    }
+                }
+
+                byte renderPixel = 0;
+                byte renderPalette = 0;
+
+                if (bgPixel == 0 && fgPixel == 0) {
+                    // Just continue;
+                } else if (bgPixel == 0 && fgPixel > 0) {
+                    renderPixel = fgPixel;
+                    renderPalette = fgPalette;
+                } else if (bgPixel > 0 && fgPixel == 0) {
+                    renderPixel = bgPixel;
+                    renderPalette = bgPalette;
+                } else if (bgPixel > 0 && fgPixel > 0) {
+                    if (spritePriority) {
+                        renderPixel = fgPixel;
+                        renderPalette = fgPalette;
+                    } else {
+                        renderPixel = bgPixel;
+                        renderPalette = bgPalette;
+                    }
+
+                    if (SpriteZeroPossible && SpriteZeroRendered) {
+                        if (Mask.GetBackground() && Mask.GetSprite()) {
+                            var backgroundLeft = Mask.GetBackgroundLeftColumn();
+                            var spriteLeft = Mask.GetSpriteLeftColumn();
+
+                            if (backgroundLeft && spriteLeft) {
+                                if (DotsDrawn >= 1 && DotsDrawn <= 258) {
+                                    Status.SetSpriteZeroHit(true);
+                                }
+                            } else {
+                                if (DotsDrawn >= 9 && DotsDrawn <= 258) {
+                                    Status.SetSpriteZeroHit(true);
+                                }
+                            }
+                        } 
+                    }
+                }
+
+                var color = GetPaletteFromMemory(renderPalette, renderPixel);
+                SetPixel(DotsDrawn - 1, CurrentScanline, color);
 
                 DotsDrawn++;
                 if (DotsDrawn >= 341) {
@@ -235,14 +417,6 @@ namespace NesEmu.PPU {
                 }
             }
             return false;
-        }
-
-
-
-        private bool IsSpriteZeroHit(ulong cycle) {
-            var y = OamData[0];
-            var x = OamData[3];
-            return (y == CurrentScanline) && x <= cycle && Mask.GetSprite();
         }
 
         public bool IsInterrupt() {
@@ -281,7 +455,6 @@ namespace NesEmu.PPU {
                 NmiInterrupt = true;
             }
         }
-
 
         public void WriteMask(byte value) {
             Mask.Update(value);
@@ -360,6 +533,19 @@ namespace NesEmu.PPU {
                 BgShifterAttributeHi <<= 1;
                 BgShifterPatternLo <<= 1;
                 BgShifterPatternHi <<= 1;
+            }
+
+            if (Mask.GetSprite() && DotsDrawn >= 1 && DotsDrawn < 258) {
+                for (var index  = 0; index < evaluatedSprites.Count; index++) {
+                    var sprite = evaluatedSprites[index];
+                    if (sprite.XPosition > 0) {
+                        sprite.XPosition -= 1;
+                        evaluatedSprites[index] = sprite;
+                    } else {
+                        SpriteShifterPatternLo[index] <<= 1;
+                        SpriteShifterPatternHi[index] <<= 1;
+                    }
+                }
             }
         }
 
@@ -565,129 +751,129 @@ namespace NesEmu.PPU {
             ] = (uint)((color.r << 16) | (color.g << 8 | (color.b << 0)));
         }
 
-        public bool RenderScanline() {
-            //if (scanline >= 240) {
-            //    return false;
-            //}
+        //public bool RenderScanline(int scanline) {
+        //    if (scanline >= 240) {
+        //        return false;
+        //    }
 
-            if (Mask.GetSprite()) {
-                var isSpriteZero = true;
-                var spriteSize = GetSpriteSize();
-                for (var i = 0; i <= 63; i++) {
-                    var yPosition = OamData[i * 4];
-                    var tileIndex = OamData[(i * 4) + 1];
-                    var attributes = OamData[(i * 4) + 2];
-                    var xPosition = OamData[(i * 4) + 3];
+        //    if (Mask.GetSprite()) {
+        //        var isSpriteZero = true;
+        //        var spriteSize = GetSpriteSize();
+        //        for (var i = 0; i <= 63; i++) {
+        //            var yPosition = OamData[i * 4];
+        //            var tileIndex = OamData[(i * 4) + 1];
+        //            var attributes = OamData[(i * 4) + 2];
+        //            var xPosition = OamData[(i * 4) + 3];
 
-                    if (!Mask.GetSpriteLeftColumn() && xPosition <= 7) {
-                        xPosition = 8;
-                    }
+        //            if (!Mask.GetSpriteLeftColumn() && xPosition <= 7) {
+        //                xPosition = 8;
+        //            }
 
-                    //if (!(scanline >= yPosition && scanline <= yPosition + 8)) {
-                    //    continue;
-                    //}
+        //            if (!(scanline >= yPosition && scanline <= yPosition + 8)) {
+        //                continue;
+        //            }
 
-                    if (yPosition == 0 && xPosition == 0 && tileIndex == 0 && attributes == 0) {
-                        continue;
-                    }
+        //            if (yPosition == 0 && xPosition == 0 && tileIndex == 0 && attributes == 0) {
+        //                continue;
+        //            }
 
-                    var paletteVal = attributes & 0b11;
-                    var priority = (attributes >> 5 & 1) == 0;
-                    var flipHorizontal = (attributes >> 6 & 1) == 1;
-                    var flipVertical = (attributes >> 7 & 1) == 1;
+        //            var paletteVal = attributes & 0b11;
+        //            var priority = (attributes >> 5 & 1) == 0;
+        //            var flipHorizontal = (attributes >> 6 & 1) == 1;
+        //            var flipVertical = (attributes >> 7 & 1) == 1;
 
-                    // If position is below the screen (?), at least it shouldn't crash anymore
-                    // I think this happens when they copy a sprite to offscreen
-                    if (yPosition >= 240 - 8) {
-                        continue;
-                    }
+        //            // If position is below the screen (?), at least it shouldn't crash anymore
+        //            // I think this happens when they copy a sprite to offscreen
+        //            if (yPosition >= 240 - 8) {
+        //                continue;
+        //            }
 
-                    //if (!(yPosition < scanline || scanline < yPosition + 8)) {
-                    //    continue;
-                    //}
+        //            if (!(yPosition < scanline || scanline < yPosition + 8)) {
+        //                continue;
+        //            }
 
-                    var palette = GetSpritePalette((byte)paletteVal);
-                    if (spriteSize == 8) {
-                        var spriteBank = GetSpritePatternAddr();
-                        var sprite = ChrRom[(spriteBank + tileIndex * 16)..(spriteBank + tileIndex * 16 + 16)];
+        //            var palette = GetSpritePalette((byte)paletteVal);
+        //            if (spriteSize == 8) {
+        //                var spriteBank = GetSpritePatternAddr();
+        //                var sprite = ChrRom[(spriteBank + tileIndex * 16)..(spriteBank + tileIndex * 16 + 16)];
 
-                        for (var y = 0; y <= 7; y++) {
-                            byte pixelY = (byte)(yPosition + y);
-                            if (flipVertical) {
-                                pixelY = (byte)(yPosition + 7 - y);
-                            }
+        //                for (var y = 0; y <= 7; y++) {
+        //                    byte pixelY = (byte)(yPosition + y);
+        //                    if (flipVertical) {
+        //                        pixelY = (byte)(yPosition + 7 - y);
+        //                    }
 
-                            var upper = sprite[y];
-                            var lower = sprite[y + 8];
+        //                    var upper = sprite[y];
+        //                    var lower = sprite[y + 8];
 
-                            //if (pixelY != scanline) {
-                            //    continue;
-                            //}
+        //                    if (pixelY != scanline) {
+        //                        continue;
+        //                    }
 
-                            for (var x = 7; x >= 0; x--) {
-                                byte pixelX = (byte)(xPosition + x);
-                                if (flipHorizontal) {
-                                    pixelX = (byte)(xPosition + 7 - x);
-                                }
+        //                    for (var x = 7; x >= 0; x--) {
+        //                        byte pixelX = (byte)(xPosition + x);
+        //                        if (flipHorizontal) {
+        //                            pixelX = (byte)(xPosition + 7 - x);
+        //                        }
 
-                                var value = (1 & lower) << 1 | (1 & upper);
-                                upper = (byte)(upper >> 1);
-                                lower = (byte)(lower >> 1);
-                                (byte r, byte g, byte b) color;
-                                switch (value) {
-                                    case 0: // Should be transparent
-                                        if (isSpriteZero) {
-                                            if (BgIsOpaque[pixelX + (pixelY * 256)]) {
-                                                Status.SetSpriteZeroHit(true);
-                                            }
-                                        }
+        //                        var value = (1 & lower) << 1 | (1 & upper);
+        //                        upper = (byte)(upper >> 1);
+        //                        lower = (byte)(lower >> 1);
+        //                        (byte r, byte g, byte b) color;
+        //                        switch (value) {
+        //                            case 0: // Should be transparent
+        //                                if (isSpriteZero) {
+        //                                    if (BgIsOpaque[pixelX + (pixelY * 256)]) {
+        //                                        Status.SetSpriteZeroHit(true);
+        //                                    }
+        //                                }
 
-                                        continue;
-                                    case 1:
-                                        color = Palette.SystemPalette[palette[1]];
-                                        break;
-                                    case 2:
-                                        color = Palette.SystemPalette[palette[2]];
-                                        break;
-                                    case 3:
-                                        color = Palette.SystemPalette[palette[3]];
-                                        break;
-                                    default: throw new Exception("Something fucky");
-                                };
-                                if (!priority) {
-                                    if (!BgIsOpaque[pixelX + (pixelY * 256)]) {
-                                        break;
-                                    }
-                                }
-                                switch (flipHorizontal, flipVertical) {
-                                    case (false, false):
-                                        SetPixel(xPosition + x, yPosition + y, color);
-                                        break;
-                                    case (true, false):
-                                        SetPixel(xPosition + 7 - x, yPosition + y, color);
-                                        break;
-                                    case (false, true):
-                                        SetPixel(xPosition + x, yPosition + 7 - y, color);
-                                        break;
-                                    case (true, true):
-                                        SetPixel(xPosition + 7 - x, yPosition + 7 - y, color);
-                                        break;
-                                }
-                            }
-                        }
-                    } else { // 8x16 sprites
-                        var bankAddr = (tileIndex & 1) == 1;
-                        var spriteAddr = bankAddr ? 0x1000 : 0;
-                        var tileNumber = tileIndex >> 1;
-                        // TODO: Finish the rest of the owl
-                        throw new NotImplementedException("8x16 Sprites aren't supported yet");
-                    }
+        //                                continue;
+        //                            case 1:
+        //                                color = Palette.SystemPalette[palette[1]];
+        //                                break;
+        //                            case 2:
+        //                                color = Palette.SystemPalette[palette[2]];
+        //                                break;
+        //                            case 3:
+        //                                color = Palette.SystemPalette[palette[3]];
+        //                                break;
+        //                            default: throw new Exception("Something fucky");
+        //                        };
+        //                        if (!priority) {
+        //                            if (!BgIsOpaque[pixelX + (pixelY * 256)]) {
+        //                                break;
+        //                            }
+        //                        }
+        //                        switch (flipHorizontal, flipVertical) {
+        //                            case (false, false):
+        //                                SetPixel(xPosition + x, yPosition + y, color);
+        //                                break;
+        //                            case (true, false):
+        //                                SetPixel(xPosition + 7 - x, yPosition + y, color);
+        //                                break;
+        //                            case (false, true):
+        //                                SetPixel(xPosition + x, yPosition + 7 - y, color);
+        //                                break;
+        //                            case (true, true):
+        //                                SetPixel(xPosition + 7 - x, yPosition + 7 - y, color);
+        //                                break;
+        //                        }
+        //                    }
+        //                }
+        //            } else { // 8x16 sprites
+        //                var bankAddr = (tileIndex & 1) == 1;
+        //                var spriteAddr = bankAddr ? 0x1000 : 0;
+        //                var tileNumber = tileIndex >> 1;
+        //                // TODO: Finish the rest of the owl
+        //                throw new NotImplementedException("8x16 Sprites aren't supported yet");
+        //            }
 
-                    isSpriteZero = false;
-                }
-            }
+        //            isSpriteZero = false;
+        //        }
+        //    }
 
-            return true;
-        }
+        //    return true;
+        //}
     }
 }

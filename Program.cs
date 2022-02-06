@@ -93,7 +93,6 @@ namespace NesEmu {
                 } while (!cpu.Bus.PollDrawFrame());
 
                 if (cpu.Bus.GetDrawFrame()) {
-                    cpu.Bus.PPU.RenderScanline();
                     currentFrame++;
                     cpu.Bus.PPU.DrawFrame(ref renderer, ref Texture);
 

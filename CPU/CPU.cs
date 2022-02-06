@@ -59,23 +59,8 @@ namespace NesEmu.CPU {
 #endif
 
         public byte RunScanline() {
-            while (true) {
-#if NESTEST
-                if (ProgramCounter == 0x0001) {
-                    stream.Flush();
-                }
-#endif
-
-                if ((Bus.UnprocessedCycles * 3) + Bus.PPU.DotsDrawn >= 341) {
-                    Bus.FastForwardPPU();
-                    break;
-                }
-#if NESTEST
-                var trace = Trace.Log(this);
-                stream.Write(Encoding.UTF8.GetBytes(trace));
-                stream.Flush();
-
-#endif
+            var currentScanline = Bus.PPU.CurrentScanline;
+            while (currentScanline == Bus.PPU.CurrentScanline) {
                 ExecuteInstruction();
             }
             return (byte)(Bus.PPU.CurrentScanline - 1);
