@@ -7,4 +7,5 @@ Please do not try to actually use this yet. It is not ready to play basically an
 
 ## Many thanks to:
 - SDL2-CS https://github.com/flibitijibibo/SDL2-CS
-  - Used to render basically everything. Currently in its own subfolder.
+  - Used to render basically everything.  
+  - Currently in its own subfolder. Code unchanged from original.
