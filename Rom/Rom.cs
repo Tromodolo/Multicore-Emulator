@@ -36,7 +36,7 @@ namespace NesEmu.Rom {
 
             var mapperLo = (control1 & 0b11110000) >> 4;
             var mapperHi = control2 & 0b11110000;
-            var mapper = mapperLo | mapperHi;
+            var mapper = (byte)(mapperLo | mapperHi);
 
             var iNesVersion = (control2 >> 2) & 0b11;
             if (iNesVersion != 0) {
@@ -67,7 +67,7 @@ namespace NesEmu.Rom {
             }
             var chrRomStart = prgRomStart + prgRomSize;
 
-            Mapper = Convert.ToByte(mapper);
+            Mapper = mapper;
             Mirroring = mirror;
             PrgRom = rawBytes[prgRomStart..(prgRomStart + prgRomSize)];
             ChrRom = chrRomSize == 0 ? new byte[ChrRomSize * 16] : rawBytes[chrRomStart..(chrRomStart + chrRomSize)];
