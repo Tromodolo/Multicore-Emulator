@@ -46,7 +46,7 @@ namespace NesEmu.Bus {
             }
 
             if ((address >= 0x4000 && address <= 0x4013) || address == 0x4015) {
-                // APU, not handled yet
+                APU.WriteData(address, value);
             } 
 
             if (address == 0x4016) {

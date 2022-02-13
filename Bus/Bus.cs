@@ -38,21 +38,28 @@ namespace NesEmu.Bus {
     public partial class Bus {
         public UInt64 CycleCount { get; private set; }
         public PPU.PPU PPU { get; private set; }
+        public APU.APU APU { get; private set; }
 
         public ControllerRegister Controller1 { get; set; }
 
         byte[] VRAM;
         byte[] PrgRom;
 
+        int FrameCycle;
         bool IsNewFrame;
 
         public Bus(Rom.Rom rom) {
             PPU = new PPU.PPU(rom.ChrRom, rom.Mirroring);
+            APU = new APU.APU();
             Controller1 = new ControllerRegister();
 
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;
             CycleCount = 0;
+        }
+
+        public void Reset() {
+            APU.Reset();
         }
 
         public bool GetNmiStatus() {
@@ -82,14 +89,21 @@ namespace NesEmu.Bus {
 
         public int UnprocessedCycles{ get; set; }
 
-        public void TickPPUCycles(byte cycleCount) {
+        public void TickCycles(byte cycleCount) {
 //#if NESTEST
             CycleCount += cycleCount;
+
+            if (CycleCount % 2 == 0) {
+                APU.TickCycle();
+            } else {
+                APU.TickAudioOutput();
+            }
 
             // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
             var isNewFrame = PPU.IncrementCycle((ulong)(cycleCount * 3));
             if (isNewFrame) {
                 IsNewFrame = isNewFrame;
+                FrameCycle = 0;
             }
 //#else
 //            UnprocessedCycles += cycleCount;

@@ -151,7 +151,7 @@ namespace NesEmu.CPU {
 #if NESTEST
             stream.Write(Encoding.UTF8.GetBytes("==BRK==\r\n"));
 #endif
-            Bus.TickPPUCycles(1);
+            Bus.TickCycles(1);
             Interrupt(InterruptType.BRK);
         }
 
@@ -159,7 +159,7 @@ namespace NesEmu.CPU {
 #if NESTEST
             stream.Write(Encoding.UTF8.GetBytes("==NMI==\r\n"));
 #endif
-            Bus.TickPPUCycles(2);
+            Bus.TickCycles(2);
             Interrupt(InterruptType.NMI);
         }
 
@@ -230,7 +230,7 @@ namespace NesEmu.CPU {
                 case "*NOP":
                     var (_, pageCross) = GetOperandAddress(mode);
                     if (pageCross) {
-                        Bus.TickPPUCycles(1);
+                        Bus.TickCycles(1);
                     }
                     break;
                 case "BRK":
@@ -467,7 +467,7 @@ namespace NesEmu.CPU {
 
             }
 
-            Bus.TickPPUCycles(op.NumCycles);
+            Bus.TickCycles(op.NumCycles);
 
             if (ProgramCounter == PCCopy) {
                 ProgramCounter += (ushort)(op.NumBytes - 1);
@@ -483,7 +483,7 @@ namespace NesEmu.CPU {
             AddToAcc(value);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -494,7 +494,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -526,13 +526,13 @@ namespace NesEmu.CPU {
 
         void branch(bool condition) {
             if (condition) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
 
                 sbyte jump = (sbyte)MemRead(ProgramCounter);
                 var jumpAddr = (ushort)(ProgramCounter + jump + 1);
 
                 if ((((ushort)(ProgramCounter + 1)) & 0xff00) != (jumpAddr & 0xff00)) {
-                    Bus.TickPPUCycles(1);
+                    Bus.TickCycles(1);
                 }
                 ProgramCounter = jumpAddr;
             }
@@ -572,7 +572,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative((byte)(value - memVal));
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -601,7 +601,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -667,7 +667,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -678,7 +678,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(RegisterX);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -689,7 +689,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(RegisterY);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -726,7 +726,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 
@@ -843,7 +843,7 @@ namespace NesEmu.CPU {
             AddToAcc((byte)(byte.MaxValue - value));
 
             if (pageCross) {
-                Bus.TickPPUCycles(1);
+                Bus.TickCycles(1);
             }
         }
 

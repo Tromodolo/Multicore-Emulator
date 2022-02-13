@@ -37,6 +37,7 @@ namespace NesEmu.CPU {
         public NesCpu(Rom.Rom rom) {
             Bus = new Bus.Bus(rom);
             Reset();
+            Bus.Reset();
         }
 
         public void Reset() {
