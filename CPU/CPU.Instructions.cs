@@ -657,10 +657,6 @@ namespace NesEmu.CPU {
         }
 
         void lda(AddressingMode mode) {
-            if (ProgramCounter - 1 == 0xD922) {
-                var x = 5;
-            }
-
             var (address, pageCross) = GetOperandAddress(mode);
             var value = MemRead(address);
             Accumulator = value;
