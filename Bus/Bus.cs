@@ -1,8 +1,10 @@
-﻿using NesEmu.PPU;
+﻿using NesEmu.CPU;
+using NesEmu.PPU;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
@@ -36,11 +38,10 @@ namespace NesEmu.Bus {
     // | Zero Page     |       |               |
     // |_______________| $0000 |_______________|
     public partial class Bus {
-        public UInt64 CycleCount { get; private set; }
-        public PPU.PPU PPU { get; private set; }
-        public APU.APU APU { get; private set; }
-
-        public ControllerRegister Controller1 { get; set; }
+        public UInt64 CycleCount;
+        public PPU.PPU PPU;
+        public BizHawk.NES.APU APU;
+        public ControllerRegister Controller1;
 
         byte[] VRAM;
         byte[] PrgRom;
@@ -48,9 +49,9 @@ namespace NesEmu.Bus {
         int FrameCycle;
         bool IsNewFrame;
 
-        public Bus(Rom.Rom rom) {
+        public Bus(NesCpu nes, Rom.Rom rom) {
             PPU = new PPU.PPU(rom.ChrRom, rom.Mirroring);
-            APU = new APU.APU();
+            APU = new BizHawk.NES.APU(nes, null, false);
             Controller1 = new ControllerRegister();
 
             VRAM = new byte[2048];
@@ -59,7 +60,7 @@ namespace NesEmu.Bus {
         }
 
         public void Reset() {
-            APU.Reset();
+            APU.NESHardReset();
         }
 
         public bool GetNmiStatus() {
@@ -76,58 +77,35 @@ namespace NesEmu.Bus {
             return isFrame;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ReadPrgRom(ushort address) {
-            // Make sure the address lines up with the prg rom
-            address -= 0x8000;
+            unsafe {
+                fixed (byte* ptr = PrgRom) {
+                    // Make sure the address lines up with the prg rom
+                    address -= 0x8000;
 
-            // If the address is longer than the prg rom, mirror it down
-            if (PrgRom.Length == 0x4000 && address >= 0x4000) {
-                address = (ushort)(address % 0x4000);
+                    // If the address is longer than the prg rom, mirror it down
+                    if (PrgRom.Length == 0x4000 && address >= 0x4000) {
+                        address = (ushort)(address % 0x4000);
+                    }
+                    return *(ptr + address);
+                }
             }
-            return PrgRom[address];
         }
 
-        public int UnprocessedCycles{ get; set; }
+        public int UnprocessedCycles;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void TickCycles(byte cycleCount) {
 //#if NESTEST
             CycleCount += cycleCount;
 
-            if (CycleCount % 2 == 0) {
-                APU.TickCycle();
-            } else {
-                APU.TickAudioOutput();
-            }
-
             // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
-            var isNewFrame = PPU.IncrementCycle((ulong)(cycleCount * 3));
+            var isNewFrame = PPU.IncrementCycle(cycleCount);
             if (isNewFrame) {
                 IsNewFrame = isNewFrame;
                 FrameCycle = 0;
             }
-//#else
-//            UnprocessedCycles += cycleCount;
-//#endif
-
-        }
-
-        public void FastForwardPPU() {
-            //#if !NESTEST
-            //            while (UnprocessedCycles > 0) {
-            //                //var toProcess = UnprocessedCycles >= 1 ? 1 : UnprocessedCycles;
-            //                //toProcess
-            //                CycleCount += 1;
-
-            //                // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
-            //                var isNewFrame = PPU.IncrementCycle((ulong)(1 * 3));
-            //                if (isNewFrame) {
-            //                    IsNewFrame = isNewFrame;
-            //                }
-
-            //                UnprocessedCycles -= 1;
-            //            }
-            //#endif
-            //        }
         }
 
         public void DumpPPUMemory() {

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -25,44 +26,57 @@ namespace NesEmu.PPU {
     }
 
     public class MaskRegister {
-        MaskRegisterStatus Status;
+        byte Status;
 
         public MaskRegister() {
-            Status = MaskRegisterStatus.Empty;
+            Status = 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetGreyscale() {
-            return ((int)Status & 1) > 0;
+            return (Status & 1) > 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetBackgroundLeftColumn() {
-            return ((int)Status & (1 << 1)) > 0;
+            return (Status & (1 << 1)) > 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetBackground() {
-            return ((int)Status & (1 << 3)) > 0;
+            return (Status & (1 << 3)) > 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetSpriteLeftColumn() {
-            return ((int)Status & (1 << 2)) > 0;
+            return (Status & (1 << 2)) > 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetSprite() {
-            return ((int)Status & (1 << 4)) > 0;
+            return (Status & (1 << 4)) > 0;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IEnumerable<Color> GetEmphasis() {
             var colors = new List<Color>();
 
-            if (Status.HasFlag(MaskRegisterStatus.EmphasisRed)) {
+            if ((Status & (1 << 5)) > 0) {
                 colors.Add(Color.Red);
             }
-            if (Status.HasFlag(MaskRegisterStatus.EmphasisGreen)) {
+            if ((Status & (1 << 6)) > 0) {
                 colors.Add(Color.Green);
             }
-            if (Status.HasFlag(MaskRegisterStatus.EmphasisBlue)) {
+            if ((Status & (1 << 7)) > 0) {
                 colors.Add(Color.Blue);
             }
 
             return colors;
         }
+
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(byte data) {
-            Status = (MaskRegisterStatus)data;
+            Status = data;
         }
     }
 }

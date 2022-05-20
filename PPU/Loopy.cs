@@ -1,46 +1,26 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.PPU {
     internal class Loopy {
-        public byte CoarseX {
-            get;
-            set;
-        }
+        public byte CoarseX;
+        public byte CoarseY;
+        public byte Nametable;
+        public byte FineY;
+        public ushort Address;
 
-        public byte CoarseY {
-            get;
-            set;
-        }
-
-        public byte Nametable {
-            get;
-            set;
-        }
-
-        public byte FineY {
-            get;
-            set;
-        }
-
-        public ushort Address {
-            get {
-                return GetAddress();
-            }
-            set {
-                Update(value);
-            }
-        }
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Increment(byte value) {
             var current = GetAddress();
             current += value;
             Update(current);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(ushort address) {
             FineY =     (byte)((address & 0b111000000000000) >> 12);
             Nametable = (byte)((address & 0b000110000000000) >> 10);
@@ -48,6 +28,7 @@ namespace NesEmu.PPU {
             CoarseX =   (byte)(address & 0b000000000011111);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetAddress() {
             return (ushort)(
                 FineY << 12 |

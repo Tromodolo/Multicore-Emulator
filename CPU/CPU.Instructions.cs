@@ -1,11 +1,19 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.CPU {
     public partial class NesCpu {
+        public enum InterruptType {
+            NMI,
+            IRQ,
+            BRK,
+            RESET
+        }
+
         OpCode GetOpFromByte(byte value) {
             return OpCodeList.OpCodes[value];
         }
@@ -139,13 +147,7 @@ namespace NesEmu.CPU {
             Accumulator = result;
             UpdateZeroAndNegative(Accumulator);
         }
-
-        enum InterruptType {
-            NMI,
-            IRQ,
-            BRK,
-            RESET
-        }
+               
 
         void BRK() {
 #if NESTEST
@@ -163,7 +165,7 @@ namespace NesEmu.CPU {
             Interrupt(InterruptType.NMI);
         }
 
-        void Interrupt(InterruptType interrupt) {
+        public void Interrupt(InterruptType interrupt) {
             if (interrupt != InterruptType.RESET) {
                 StackPushShort(ProgramCounter);
 
@@ -195,6 +197,7 @@ namespace NesEmu.CPU {
 
         bool isInNmi = false;
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void HandleInstruction(OpCode op) {
             if (op == null) {
                 return;

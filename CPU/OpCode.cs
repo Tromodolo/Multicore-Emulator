@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace NesEmu.CPU {
     public class OpCode {
-        public string Name { get; set; }
-        public byte Code { get; set; }
-        public byte NumBytes { get; set; }
-        public byte NumCycles { get; set; }
-        public AddressingMode Mode { get; set; }
+        public string Name;
+        public byte Code;
+        public byte NumBytes;
+        public byte NumCycles;
+        public AddressingMode Mode;
 
         public OpCode(byte code, string name, byte numBytes, byte numCycles, AddressingMode mode) {
             Code = code;

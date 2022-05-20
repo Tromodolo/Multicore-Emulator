@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -24,18 +25,18 @@ namespace NesEmu.CPU {
         const ushort StackStart = 0x0100;
         const byte StackReset = 0xfd;
 
-        public byte Accumulator { get; private set; }
-        public byte RegisterX { get; private set; }
-        public byte RegisterY { get; private set; }
-        public ushort ProgramCounter { get; private set; }
-        public byte StackPointer { get; private set; }
-        public bool Running { get; private set; }
-        public Flags Status { get; private set; }
-        public UInt64 TotalCycles { get; set; }
-        public Bus.Bus Bus { get; set; }
+        public byte Accumulator;
+        public byte RegisterX;
+        public byte RegisterY;
+        public ushort ProgramCounter;
+        public byte StackPointer;
+        public bool Running;
+        public Flags Status;
+        public UInt64 TotalCycles;
+        public Bus.Bus Bus;
 
         public NesCpu(Rom.Rom rom) {
-            Bus = new Bus.Bus(rom);
+            Bus = new Bus.Bus(this, rom);
             Reset();
             Bus.Reset();
         }
@@ -67,6 +68,7 @@ namespace NesEmu.CPU {
             return (byte)(Bus.PPU.CurrentScanline - 1);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void ExecuteInstruction() {
             var op = GetOpFromByte(MemRead(ProgramCounter));
             HandleInstruction(op);

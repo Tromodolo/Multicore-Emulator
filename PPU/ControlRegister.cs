@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -19,12 +20,14 @@ namespace NesEmu.Rom {
     }
 
     public class ControlRegister {
-        ControlRegisterStatus Status;
+        byte Status;
 
         public ControlRegister() {
-            Status = ControlRegisterStatus.Empty;
+            //Status = ControlRegisterStatus.Empty;
+            Status = 0;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetNameTableAddress() {
             var status = (byte)Status;
             return (status & 0b11) switch {
@@ -36,52 +39,59 @@ namespace NesEmu.Rom {
             };
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetVramAddrIncrement() {
-            if (((int)Status & (1 << 2)) > 1) {
+            if ((Status & (1 << 2)) > 1) {
                 return 32;
             } else {
                 return 1;
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetBackgroundPatternAddr() {
-            if (((int)Status & (1 << 4)) > 1) {
+            if ((Status & (1 << 4)) > 1) {
                 return 0x1000;
             } else {
                 return 0;
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetSpritePatternAddr() {
-            if (((int)Status & (1 << 3)) > 1) {
+            if ((Status & (1 << 3)) > 1) {
                 return 0x1000;
             } else {
                 return 0;
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetSpriteSize() {
-            if (((int)Status & (1 << 5)) > 1) {
+            if ((Status & (1 << 5)) > 1) {
                 return 16;
             } else {
                 return 8;
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte MasterSlaveSelect() {
-            if (((int)Status & (1 << 6)) > 1) {
+            if ((Status & (1 << 6)) > 1) {
                 return 1;
             } else {
                 return 0;
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool ShouldGenerateVBlank() {
-            return ((int)Status & (1 << 7)) > 1;
+            return (Status & (1 << 7)) > 1;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(byte data) {
-            Status = (ControlRegisterStatus)data;
+            Status = data;
         }
     }
 }

@@ -3,17 +3,18 @@ using SDL2;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.PPU {
     public class PPU {
-        public byte[] ChrRom { get; private set; }
-        public byte[] PaletteTable { get; private set; }
-        public byte[] Vram { get; private set; }
-        public byte[] OamData { get; private set; }
-        public byte OamAddr { get; private set; }
-        public ScreenMirroring Mirroring { get; private set; }
+        public byte[] ChrRom;
+        public byte[] PaletteTable;
+        public byte[] Vram;
+        public byte[] OamData;
+        public byte OamAddr;
+        public ScreenMirroring Mirroring;
 
         public int DotsDrawn;
         public int CurrentScanline;
@@ -60,7 +61,7 @@ namespace NesEmu.PPU {
             public byte Attribute = 0;
             public bool SpriteZero = false;
         }
-        List<SpriteEntry> evaluatedSprites = new List<SpriteEntry>();
+        SpriteEntry[] evaluatedSprites = new SpriteEntry[8];
         byte spriteCount = 0;
 
         bool SpriteZeroPossible = false;
@@ -88,7 +89,7 @@ namespace NesEmu.PPU {
             V_Loopy = new Loopy();
         }
 
-
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IncrementVramAddr() {
             V_Loopy.Increment(Ctrl.GetVramAddrIncrement());
         }
@@ -100,6 +101,7 @@ namespace NesEmu.PPU {
         // Vertical:
         //   [ A1 ] [ B1 ]
         //   [ a2 ] [ b2 ]
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ushort MirrorVramAddr(ushort addr) {
             // Mirrors values like 0x3000-0x3eff down to 0x2000-0x2eff
             var mirroredAddr = addr & 0b10111111111111;
@@ -131,295 +133,324 @@ namespace NesEmu.PPU {
             return nameTableAddr;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IncrementCycle(ulong cycleCount) {
-            TotalCycles += cycleCount / 3;
+            unsafe {
+                fixed (byte* vramPtr = Vram) {
+                    fixed (byte* chrRomPtr = ChrRom) {
+                        TotalCycles += cycleCount / 3;
 
-            for (var i = cycleCount; i > 0; i--) {
-                if (CurrentScanline >= -1 && CurrentScanline < 240) {
-                    if (CurrentScanline == -1 && DotsDrawn == 1) {
-                        Status.SetVBlank(false);
+                        for (var i = cycleCount; i > 0; i--) {
+                            if (CurrentScanline >= -1 && CurrentScanline < 240) {
+                                if (CurrentScanline == -1 && DotsDrawn == 1) {
+                                    Status.SetVBlank(false);
 
-                        Status.SetSpriteZeroHit(false);
-                        Status.SetSpriteOverflow(false);
-                        SpriteZeroPossible = false;
-                        for (var j = 0; j < 8; j++) {
-                            SpriteShifterPatternLo[j] = 0;
-                            SpriteShifterPatternHi[j] = 0;
-                        }
-                    }
-
-                    if ((DotsDrawn >= 2 && DotsDrawn < 258) || (DotsDrawn >= 321 && DotsDrawn < 338)) {
-                        UpdateShifters();
-
-                        switch ((DotsDrawn - 1) % 8) {
-                            case 0:
-                                LoadBackgroundShifters();
-                                BgNextTileId = Vram[MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF)))];
-                                break;
-                            case 2:
-                                BgNextTileAttribute = Vram[
-                                    MirrorVramAddr((ushort)(0x23c0 |
-                                    ((V_Loopy.Nametable & 0b10) << 11) |
-                                    ((V_Loopy.Nametable & 1) << 10) |
-                                    ((V_Loopy.CoarseY >> 2) << 3) |
-                                    (V_Loopy.CoarseX >> 2)))
-                                ];
-
-                                if ((V_Loopy.CoarseY & 0x02) != 0) {
-                                    BgNextTileAttribute >>= 4;
+                                    Status.SetSpriteZeroHit(false);
+                                    Status.SetSpriteOverflow(false);
+                                    SpriteZeroPossible = false;
+                                    for (var j = 0; j < 8; j++) {
+                                        SpriteShifterPatternLo[j] = 0;
+                                        SpriteShifterPatternHi[j] = 0;
+                                    }
                                 }
-                                if ((V_Loopy.CoarseX & 0x02) != 0) {
-                                    BgNextTileAttribute >>= 2;
+
+                                if ((DotsDrawn >= 2 && DotsDrawn < 258) || (DotsDrawn >= 321 && DotsDrawn < 338)) {
+                                    UpdateShifters();
+
+                                    switch ((DotsDrawn - 1) % 8) {
+                                        case 0:
+                                            LoadBackgroundShifters();
+                                            BgNextTileId = *(vramPtr + MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF))));
+                                            break;
+                                        case 2:
+                                            BgNextTileAttribute = *(vramPtr + MirrorVramAddr((ushort)(0x23c0 |
+                                                ((V_Loopy.Nametable & 0b10) << 11) |
+                                                ((V_Loopy.Nametable & 1) << 10) |
+                                                ((V_Loopy.CoarseY >> 2) << 3) |
+                                                (V_Loopy.CoarseX >> 2)))
+                                            );
+
+                                            //BgNextTileAttribute = Vram[
+                                            //    MirrorVramAddr((ushort)(0x23c0 |
+                                            //    ((V_Loopy.Nametable & 0b10) << 11) |
+                                            //    ((V_Loopy.Nametable & 1) << 10) |
+                                            //    ((V_Loopy.CoarseY >> 2) << 3) |
+                                            //    (V_Loopy.CoarseX >> 2)))
+                                            //];
+
+                                            if ((V_Loopy.CoarseY & 0x02) != 0) {
+                                                BgNextTileAttribute >>= 4;
+                                            }
+                                            if ((V_Loopy.CoarseX & 0x02) != 0) {
+                                                BgNextTileAttribute >>= 2;
+                                            }
+                                            BgNextTileAttribute &= 0x03;
+                                            break;
+                                        case 4:
+                                            BgNextTileLsb = *(chrRomPtr + Ctrl.GetBackgroundPatternAddr() + (BgNextTileId * 16) + V_Loopy.FineY);
+                                            break;
+                                        case 6:
+                                            BgNextTileMsb = *(chrRomPtr + Ctrl.GetBackgroundPatternAddr() + (BgNextTileId * 16) + V_Loopy.FineY + 8);
+                                            break;
+                                        case 7:
+                                            IncrementScrollX();
+                                            break;
+                                    }
                                 }
-                                BgNextTileAttribute &= 0x03;
-                                break;
-                            case 4:
-                                BgNextTileLsb = ChrRom[Ctrl.GetBackgroundPatternAddr() + (BgNextTileId * 16) + V_Loopy.FineY];
-                                break;
-                            case 6:
-                                BgNextTileMsb = ChrRom[Ctrl.GetBackgroundPatternAddr() + (BgNextTileId * 16) + V_Loopy.FineY + 8];
-                                break;
-                            case 7:
-                                IncrementScrollX();
-                                break;
-                        }
-                    }
 
-                    if (DotsDrawn == 256) {
-                        IncrementScrollY();
-                    }
+                                if (DotsDrawn == 256) {
+                                    IncrementScrollY();
+                                }
 
-                    if (DotsDrawn == 257) {
-                        LoadBackgroundShifters();
-                        ResetAddressX();
-                    }
+                                if (DotsDrawn == 257) {
+                                    LoadBackgroundShifters();
+                                    ResetAddressX();
+                                }
 
-                    if (DotsDrawn == 338 || DotsDrawn == 340) {
-                        BgNextTileId = Vram[MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF)))];
-                    }
+                                if (DotsDrawn == 338 || DotsDrawn == 340) {
+                                    BgNextTileId = *(vramPtr + MirrorVramAddr((ushort)(0x2000 | (V_Loopy.GetAddress() & 0x0FFF))));
+                                }
 
-                    if (CurrentScanline == -1 && DotsDrawn >= 280 && DotsDrawn < 305) {
-                        ResetAddressY();
-                    }
+                                if (CurrentScanline == -1 && DotsDrawn >= 280 && DotsDrawn < 305) {
+                                    ResetAddressY();
+                                }
 
 
-                    // Sprite evaluation
-                    if (DotsDrawn == 257 && CurrentScanline >= 0) {
-                        evaluatedSprites.Clear();
-                        spriteCount = 0;
+                                // Sprite evaluation
+                                if (DotsDrawn == 257 && CurrentScanline >= 0) {
+                                    spriteCount = 0;
 
-                        for (var j = 0; j < 8; j++) {
-                            SpriteShifterPatternLo[j] = 0;
-                            SpriteShifterPatternHi[j] = 0;
-                        }
-
-                        var index = 0;
-                        foreach (var oamEntry in OamData) {
-                            if (spriteCount >= 8) {
-                                Status.SetSpriteOverflow(true);
-                                break;
-                            }
-                            if (index >= 64) {
-                                break;
-                            }
-
-                            var yPosition = OamData[index * 4];
-                            var tileIndex = OamData[(index * 4) + 1];
-                            var attributes = OamData[(index * 4) + 2];
-                            var xPosition = OamData[(index * 4) + 3];
-
-                            if (yPosition == 0 && tileIndex == 0 && attributes == 0 && xPosition == 0) {
-                                continue;
-                            }
-
-                            var yDiff = CurrentScanline - yPosition;
-                            if (yDiff >= 0 && yDiff < Ctrl.GetSpriteSize()) {
-                                if (spriteCount < 8) {
-                                    SpriteEntry sprite;
-                                    sprite.YPosition = yPosition;
-                                    sprite.XPosition = xPosition;
-                                    sprite.Attribute = attributes;
-                                    sprite.TileId = tileIndex;
-                                    if (index == 0) {
-                                        sprite.SpriteZero = true;
-                                        SpriteZeroPossible = true;
-                                    } else {
-                                        sprite.SpriteZero = false;
+                                    for (var j = 0; j < 8; j++) {
+                                        SpriteShifterPatternLo[j] = 0;
+                                        SpriteShifterPatternHi[j] = 0;
                                     }
 
-                                    evaluatedSprites.Add(sprite);
-                                    spriteCount++;
+                                    var index = 0;
+                                    unsafe {
+                                        fixed(SpriteEntry* ptr = evaluatedSprites) {
+                                            foreach (var oamEntry in OamData) {
+                                                if (spriteCount >= 8) {
+                                                    Status.SetSpriteOverflow(true);
+                                                    break;
+                                                }
+                                                if (index >= 64) {
+                                                    break;
+                                                }
+
+                                                var yPosition = OamData[index * 4];
+                                                var tileIndex = OamData[(index * 4) + 1];
+                                                var attributes = OamData[(index * 4) + 2];
+                                                var xPosition = OamData[(index * 4) + 3];
+
+                                                if (yPosition == 0 && tileIndex == 0 && attributes == 0 && xPosition == 0) {
+                                                    continue;
+                                                }
+
+                                                var yDiff = CurrentScanline - yPosition;
+                                                if (yDiff >= 0 && yDiff < Ctrl.GetSpriteSize()) {
+                                                    if (spriteCount < 8) {
+                                                        SpriteEntry sprite;
+                                                        sprite.YPosition = yPosition;
+                                                        sprite.XPosition = xPosition;
+                                                        sprite.Attribute = attributes;
+                                                        sprite.TileId = tileIndex;
+                                                        if (index == 0) {
+                                                            sprite.SpriteZero = true;
+                                                            SpriteZeroPossible = true;
+                                                        } else {
+                                                            sprite.SpriteZero = false;
+                                                        }
+
+                                                        *(ptr + spriteCount) = sprite;
+                                                        //evaluatedSprites[spriteCount] = sprite;
+                                                        spriteCount++;
+                                                    } else {
+                                                        spriteCount++;
+                                                    }
+                                                }
+
+                                                index++;
+                                            }
+                                        }
+
+                                    }
+
+                                } 
+
+                                if (DotsDrawn == 340) {
+                                    var spriteIndex = 0;
+                                    foreach (var sprite in evaluatedSprites) {
+                                        byte patternBitsLo, patternBitsHi;
+                                        ushort patternAddrLo, patternAddrHi;
+
+                                        var paletteVal = sprite.Attribute & 0b11;
+                                        var priority = (sprite.Attribute >> 5 & 1) == 0;
+                                        var flipHorizontal = (sprite.Attribute >> 6 & 1) == 1;
+                                        var flipVertical = (sprite.Attribute >> 7 & 1) == 1;
+
+                                        if (Ctrl.GetSpriteSize() == 8) {
+                                            if (flipVertical) {
+                                                patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(7 - (CurrentScanline - sprite.YPosition)));
+                                            } else {
+                                                patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(CurrentScanline - sprite.YPosition));
+                                            }
+
+                                        } else {
+                                            // 8x16 pixels
+                                            throw new NotImplementedException("Roms with 8x16 sprites are currently not supported");
+                                        }
+
+                                        patternAddrHi = (ushort)(patternAddrLo + 8);
+                                        patternBitsLo = *(chrRomPtr + patternAddrLo);
+                                        patternBitsHi = *(chrRomPtr + patternAddrHi);
+
+                                        if (flipHorizontal) {
+                                            // https://stackoverflow.com/a/2602885
+                                            // What the fuck
+                                            patternBitsLo = (byte)((patternBitsLo & 0xF0) >> 4 | (patternBitsLo & 0x0F) << 4);
+                                            patternBitsLo = (byte)((patternBitsLo & 0xCC) >> 2 | (patternBitsLo & 0x33) << 2);
+                                            patternBitsLo = (byte)((patternBitsLo & 0xAA) >> 1 | (patternBitsLo & 0x55) << 1);
+
+                                            patternBitsHi = (byte)((patternBitsHi & 0xF0) >> 4 | (patternBitsHi & 0x0F) << 4);
+                                            patternBitsHi = (byte)((patternBitsHi & 0xCC) >> 2 | (patternBitsHi & 0x33) << 2);
+                                            patternBitsHi = (byte)((patternBitsHi & 0xAA) >> 1 | (patternBitsHi & 0x55) << 1);
+                                        }
+
+                                        SpriteShifterPatternLo[spriteIndex] = patternBitsLo;
+                                        SpriteShifterPatternHi[spriteIndex] = patternBitsHi;
+
+                                        spriteIndex++;
+
+                                        if (spriteIndex >= spriteCount) {
+                                            break;
+                                        }
+                                    }
+                                } 
+
+                            }
+
+                            if (CurrentScanline == 240) {
+                                // Nothing?
+                            }
+
+                            if (CurrentScanline == 241 && DotsDrawn == 1) {
+                                Status.SetVBlank(true);
+                                if (Ctrl.ShouldGenerateVBlank()) {
+                                    NmiInterrupt = true;
+                                }
+                            }
+
+                            byte bgPixel = 0;
+                            byte bgPalette = 0;
+
+                            byte fgPixel = 0;
+                            byte fgPalette = 0;
+
+                            bool spritePriority = false;
+
+                            if (Mask.GetBackground() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
+                                ushort bitMux = (ushort)(0x8000 >> fineX);
+
+                                byte p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
+                                byte p1Pixel = (byte)((BgShifterPatternHi & bitMux) > 0 ? 1 : 0);
+                                bgPixel = (byte)((p1Pixel << 1) | p0Pixel);
+
+                                byte p0Palette = (byte)((BgShifterAttributeLo & bitMux) > 0 ? 1 : 0);
+                                byte p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
+                                bgPalette = (byte)((p1Palette << 1) | p0Palette);
+                            }
+
+                            if (Mask.GetSprite() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
+                                SpriteZeroRendered = false;
+
+                                var index = 0;
+                                foreach (var sprite in evaluatedSprites) {
+                                    if (index >= spriteCount) {
+                                        break;
+                                    }
+
+                                    if (sprite.XPosition == 0) {
+                                        var spritePixelLo = (SpriteShifterPatternLo[index] & 0x80) > 0 ? 1 : 0;
+                                        var spritePixelHi = (SpriteShifterPatternHi[index] & 0x80) > 0 ? 1 : 0;
+
+                                        fgPixel = (byte)((spritePixelHi << 1) | spritePixelLo);
+                                        fgPalette = (byte)((sprite.Attribute & 0b11) + 0b100);
+                                        spritePriority = (sprite.Attribute & 0x20) == 0;
+
+                                        if (fgPixel != 0) {
+                                            if (sprite.SpriteZero) {
+                                                SpriteZeroRendered = true;
+                                            }
+
+                                            // Since sprites are sorted in priority, if we actually find a sprite for the pixel, we can just skip the rest
+                                            break;
+                                        }
+                                    }
+                                    index++;
+                                }
+                            }
+
+                            byte renderPixel = 0;
+                            byte renderPalette = 0;
+
+                            if (bgPixel == 0 && fgPixel == 0) {
+                                // Just continue;
+                            } else if (bgPixel == 0 && fgPixel > 0) {
+                                renderPixel = fgPixel;
+                                renderPalette = fgPalette;
+                            } else if (bgPixel > 0 && fgPixel == 0) {
+                                renderPixel = bgPixel;
+                                renderPalette = bgPalette;
+                            } else if (bgPixel > 0 && fgPixel > 0) {
+                                if (spritePriority) {
+                                    renderPixel = fgPixel;
+                                    renderPalette = fgPalette;
                                 } else {
-                                    spriteCount++;
+                                    renderPixel = bgPixel;
+                                    renderPalette = bgPalette;
+                                }
+
+                                if (SpriteZeroPossible && SpriteZeroRendered) {
+                                    if (Mask.GetBackground() && Mask.GetSprite()) {
+                                        var backgroundLeft = Mask.GetBackgroundLeftColumn();
+                                        var spriteLeft = Mask.GetSpriteLeftColumn();
+
+                                        if (backgroundLeft && spriteLeft) {
+                                            if (DotsDrawn >= 1 && DotsDrawn <= 258) {
+                                                Status.SetSpriteZeroHit(true);
+                                            }
+                                        } else {
+                                            if (DotsDrawn >= 9 && DotsDrawn <= 258) {
+                                                Status.SetSpriteZeroHit(true);
+                                            }
+                                        }
+                                    } 
                                 }
                             }
 
-                            index++;
-                        }
+                            //var color = GetPaletteFromMemory(renderPalette, renderPixel);
+                            var color = Palette.SystemPalette[PaletteTable[(renderPalette << 2) + renderPixel] & 0x3f];
+                            SetPixel(DotsDrawn - 1, CurrentScanline, color);
 
-                    } 
-
-                    if (DotsDrawn == 340) {
-                        var spriteIndex = 0;
-                        foreach (var sprite in evaluatedSprites) {
-                            byte patternBitsLo, patternBitsHi;
-                            ushort patternAddrLo, patternAddrHi;
-
-                            var paletteVal = sprite.Attribute & 0b11;
-                            var priority = (sprite.Attribute >> 5 & 1) == 0;
-                            var flipHorizontal = (sprite.Attribute >> 6 & 1) == 1;
-                            var flipVertical = (sprite.Attribute >> 7 & 1) == 1;
-
-                            if (Ctrl.GetSpriteSize() == 8) {
-                                if (flipVertical) {
-                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(7 - (CurrentScanline - sprite.YPosition)));
-                                } else {
-                                    patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(CurrentScanline - sprite.YPosition));
+                            DotsDrawn++;
+                            if (DotsDrawn >= 341) {
+                                DotsDrawn = 0;
+                                CurrentScanline++;
+                                if (CurrentScanline >= 261) {
+                                    CurrentScanline = -1;
+                                    Status.ResetVBlank();
+                                    NmiInterrupt = false;
+                                    return true;
                                 }
-
-                            } else {
-                                // 8x16 pixels
-                                throw new NotImplementedException("Roms with 8x16 sprites are currently not supported");
-                            }
-
-                            patternAddrHi = (ushort)(patternAddrLo + 8);
-                            patternBitsLo = ChrRom[patternAddrLo];
-                            patternBitsHi = ChrRom[patternAddrHi];
-
-                            if (flipHorizontal) {
-                                // https://stackoverflow.com/a/2602885
-                                // What the fuck
-                                patternBitsLo = (byte)((patternBitsLo & 0xF0) >> 4 | (patternBitsLo & 0x0F) << 4);
-                                patternBitsLo = (byte)((patternBitsLo & 0xCC) >> 2 | (patternBitsLo & 0x33) << 2);
-                                patternBitsLo = (byte)((patternBitsLo & 0xAA) >> 1 | (patternBitsLo & 0x55) << 1);
-
-                                patternBitsHi = (byte)((patternBitsHi & 0xF0) >> 4 | (patternBitsHi & 0x0F) << 4);
-                                patternBitsHi = (byte)((patternBitsHi & 0xCC) >> 2 | (patternBitsHi & 0x33) << 2);
-                                patternBitsHi = (byte)((patternBitsHi & 0xAA) >> 1 | (patternBitsHi & 0x55) << 1);
-                            }
-
-                            SpriteShifterPatternLo[spriteIndex] = patternBitsLo;
-                            SpriteShifterPatternHi[spriteIndex] = patternBitsHi;
-
-                            spriteIndex++;
-                        }
-                    } 
-
-                }
-
-                if (CurrentScanline == 240) {
-                    // Nothing?
-                }
-
-                if (CurrentScanline == 241 && DotsDrawn == 1) {
-                    Status.SetVBlank(true);
-                    if (Ctrl.ShouldGenerateVBlank()) {
-                        NmiInterrupt = true;
-                    }
-                }
-
-                byte bgPixel = 0;
-                byte bgPalette = 0;
-
-                byte fgPixel = 0;
-                byte fgPalette = 0;
-
-                bool spritePriority = false;
-
-                if (Mask.GetBackground() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
-                    ushort bitMux = (ushort)(0x8000 >> fineX);
-
-                    byte p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
-                    byte p1Pixel = (byte)((BgShifterPatternHi & bitMux) > 0 ? 1 : 0);
-                    bgPixel = (byte)((p1Pixel << 1) | p0Pixel);
-
-                    byte p0Palette = (byte)((BgShifterAttributeLo & bitMux) > 0 ? 1 : 0);
-                    byte p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
-                    bgPalette = (byte)((p1Palette << 1) | p0Palette);
-                }
-
-                if (Mask.GetSprite() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
-                    SpriteZeroRendered = false;
-
-                    var index = 0;
-                    foreach (var sprite in evaluatedSprites) {
-                        if (sprite.XPosition == 0) {
-                            var spritePixelLo = (SpriteShifterPatternLo[index] & 0x80) > 0 ? 1 : 0;
-                            var spritePixelHi = (SpriteShifterPatternHi[index] & 0x80) > 0 ? 1 : 0;
-
-                            fgPixel = (byte)((spritePixelHi << 1) | spritePixelLo);
-                            fgPalette = (byte)((sprite.Attribute & 0b11) + 0b100);
-                            spritePriority = (sprite.Attribute & 0x20) == 0;
-
-                            if (fgPixel != 0) {
-                                if (sprite.SpriteZero) {
-                                    SpriteZeroRendered = true;
-                                }
-
-                                // Since sprites are sorted in priority, if we actually find a sprite for the pixel, we can just skip the rest
-                                break;
                             }
                         }
-                        index++;
-                    }
-                }
-
-                byte renderPixel = 0;
-                byte renderPalette = 0;
-
-                if (bgPixel == 0 && fgPixel == 0) {
-                    // Just continue;
-                } else if (bgPixel == 0 && fgPixel > 0) {
-                    renderPixel = fgPixel;
-                    renderPalette = fgPalette;
-                } else if (bgPixel > 0 && fgPixel == 0) {
-                    renderPixel = bgPixel;
-                    renderPalette = bgPalette;
-                } else if (bgPixel > 0 && fgPixel > 0) {
-                    if (spritePriority) {
-                        renderPixel = fgPixel;
-                        renderPalette = fgPalette;
-                    } else {
-                        renderPixel = bgPixel;
-                        renderPalette = bgPalette;
-                    }
-
-                    if (SpriteZeroPossible && SpriteZeroRendered) {
-                        if (Mask.GetBackground() && Mask.GetSprite()) {
-                            var backgroundLeft = Mask.GetBackgroundLeftColumn();
-                            var spriteLeft = Mask.GetSpriteLeftColumn();
-
-                            if (backgroundLeft && spriteLeft) {
-                                if (DotsDrawn >= 1 && DotsDrawn <= 258) {
-                                    Status.SetSpriteZeroHit(true);
-                                }
-                            } else {
-                                if (DotsDrawn >= 9 && DotsDrawn <= 258) {
-                                    Status.SetSpriteZeroHit(true);
-                                }
-                            }
-                        } 
-                    }
-                }
-
-                var color = GetPaletteFromMemory(renderPalette, renderPixel);
-                SetPixel(DotsDrawn - 1, CurrentScanline, color);
-
-                DotsDrawn++;
-                if (DotsDrawn >= 341) {
-                    DotsDrawn = 0;
-                    CurrentScanline++;
-                    if (CurrentScanline >= 261) {
-                        CurrentScanline = -1;
-                        Status.ResetVBlank();
-                        NmiInterrupt = false;
-                        return true;
+                        return false;
                     }
                 }
             }
-            return false;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsInterrupt() {
             return NmiInterrupt;
         }
@@ -429,24 +460,29 @@ namespace NesEmu.PPU {
         /// If you just want to check, use IsInterrupt()
         /// </summary>
         /// <returns></returns>
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetInterrupt() {
             var interrupt = NmiInterrupt;
             NmiInterrupt = false;
             return interrupt;
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetBackgroundPatternAddr() {
             return Ctrl.GetBackgroundPatternAddr();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetSpritePatternAddr() {
             return Ctrl.GetSpritePatternAddr();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetSpriteSize() {
             return Ctrl.GetSpriteSize();
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteCtrl(byte value) {
             T_Loopy.Nametable = (byte)(value & 0b11);
 
@@ -457,10 +493,12 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteMask(byte value) {
             Mask.Update(value);
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void IncrementScrollX() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 if (V_Loopy.CoarseX == 31) {
@@ -474,6 +512,7 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void IncrementScrollY() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 if (V_Loopy.FineY < 7) {
@@ -494,6 +533,7 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetAddressX() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b10) | (T_Loopy.Nametable & 0b1));
@@ -501,6 +541,7 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetAddressY() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b1) | (T_Loopy.Nametable & 0b10));
@@ -509,6 +550,7 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void LoadBackgroundShifters() {
             BgShifterPatternLo = (ushort)((BgShifterPatternLo & 0xFF00) | BgNextTileLsb);
             BgShifterPatternHi = (ushort)((BgShifterPatternHi & 0xFF00) | BgNextTileMsb);
@@ -528,32 +570,39 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateShifters() {
-            if (Mask.GetBackground()) {
-                BgShifterAttributeLo <<= 1;
-                BgShifterAttributeHi <<= 1;
-                BgShifterPatternLo <<= 1;
-                BgShifterPatternHi <<= 1;
-            }
+            unsafe {
+                fixed (SpriteEntry* ptr = evaluatedSprites) {
+                    if (Mask.GetBackground()) {
+                        BgShifterAttributeLo <<= 1;
+                        BgShifterAttributeHi <<= 1;
+                        BgShifterPatternLo <<= 1;
+                        BgShifterPatternHi <<= 1;
+                    }
 
-            if (Mask.GetSprite() && DotsDrawn >= 1 && DotsDrawn < 258) {
-                for (var index  = 0; index < evaluatedSprites.Count; index++) {
-                    var sprite = evaluatedSprites[index];
-                    if (sprite.XPosition > 0) {
-                        sprite.XPosition -= 1;
-                        evaluatedSprites[index] = sprite;
-                    } else {
-                        SpriteShifterPatternLo[index] <<= 1;
-                        SpriteShifterPatternHi[index] <<= 1;
+                    if (Mask.GetSprite() && DotsDrawn >= 1 && DotsDrawn < 258) {
+                        for (var index  = 0; index < spriteCount; index++) {
+                            var sprite = *(ptr + index);
+                            if (sprite.XPosition > 0) {
+                                sprite.XPosition -= 1;
+                                *(ptr + index) = sprite;
+                            } else {
+                                SpriteShifterPatternLo[index] <<= 1;
+                                SpriteShifterPatternHi[index] <<= 1;
+                            }
+                        }
                     }
                 }
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private (byte r, byte g, byte b) GetPaletteFromMemory(byte palette, byte pixel) {
             return Palette.SystemPalette[PaletteTable[(palette << 2) + pixel] & 0x3f];
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteScroll(byte value) {
             if (WriteLatch) {
                 var coarseY = value >> 3;
@@ -572,6 +621,7 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WritePPUAddr(byte value) {
             if (WriteLatch) {
                 T_Loopy.Update((ushort)((T_Loopy.GetAddress() & 0xFF00) | value));
@@ -583,6 +633,7 @@ namespace NesEmu.PPU {
             }
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetData() {
             var addr = V_Loopy.GetAddress();
             IncrementVramAddr();

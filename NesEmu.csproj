@@ -8,6 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <None Update="blip_buf.dll">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="cpu_interrupts.nes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

@@ -17,10 +17,10 @@ namespace NesEmu.Rom {
         const ushort PrgRomSize = 0x4000;
         const ushort ChrRomSize = 0x2000;
 
-        public byte[] PrgRom { get; }
-        public byte[] ChrRom { get; }
-        public byte Mapper { get; }
-        public ScreenMirroring Mirroring { get; }
+        public byte[] PrgRom;
+        public byte[] ChrRom;
+        public byte Mapper;
+        public ScreenMirroring Mirroring;
 
         public Rom(byte[] rawBytes) {
             if (!(
