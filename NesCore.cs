@@ -15,11 +15,8 @@ namespace NesEmu {
         public PPU.PPU PPU;
         public BizHawk.NES.APU APU;
 
-        const uint AUDIO_SAMPLE_FULL_THRESHOLD = 2048;
-        const int SAMPLES_PER_CALLBACK = 32;  // 735 = 44100 samples / 60 fps // 367.5? 1470
-
         IntPtr audioBuffer = Marshal.AllocHGlobal(16384);
-        SDL_AudioSpec sdlWant, sdlHave;
+        SDL_AudioSpec sdlSpec;
         int _audioDevice;
 
         public NesCore(Rom.Rom rom) {
@@ -35,17 +32,17 @@ namespace NesEmu {
                 Console.WriteLine($"Device {i} {SDL_GetAudioDeviceName(i, 0)}");
             }
 
-            sdlWant.channels = 2;
-            sdlWant.freq = 44100;
-            sdlWant.samples = (ushort)SAMPLES_PER_CALLBACK;
-            sdlWant.format = AUDIO_S16LSB;
+            sdlSpec.channels = 2;
+            sdlSpec.freq = 44100;
+            sdlSpec.samples = 32;
+            sdlSpec.format = AUDIO_S16LSB;
             var defaultDevice = SDL_GetAudioDeviceName(2, 0);
-            _audioDevice = (int)SDL_OpenAudioDevice(defaultDevice, 0, ref sdlWant, out sdlHave, 0); //(int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
+            _audioDevice = (int)SDL_OpenAudioDevice(defaultDevice, 0, ref sdlSpec, out SDL_AudioSpec received, 0);
 
             if (_audioDevice == 0) {
                 Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
             } else {
-                Console.WriteLine($"Audio Device Initialized: {SDL_GetAudioDeviceName((int)_audioDevice, 0)}");
+                Console.WriteLine($"Audio Device Initialized: {defaultDevice}");
             }
 
             SDL_PauseAudioDevice((uint)_audioDevice, 0);
@@ -67,6 +64,7 @@ namespace NesEmu {
             var count = APU.sampleclock;
             Bus.blip.EndFrame(count);
             APU.sampleclock = 0;
+
             var numAvailable = Bus.blip.SamplesAvailable();
             var samples = new short[numAvailable * 2];
             Bus.blip.ReadSamples(samples, numAvailable, true);
@@ -76,14 +74,9 @@ namespace NesEmu {
                 samples[i * 2 + 1] = samples[i];
             }
 
-            if ((SDL_GetQueuedAudioSize((uint)_audioDevice) / sizeof(short)) < AUDIO_SAMPLE_FULL_THRESHOLD) {
-                int bytes = sizeof(short) * samples.Length;
-                Marshal.Copy(samples, 0, audioBuffer, samples.Length);
-                //SDL_SetWindowTitle(window, $"{count} samples {numAvailable} available");
-                SDL_QueueAudio((uint)_audioDevice, audioBuffer, (uint)bytes);
-            } else {
-                var x = 5;
-            }
+            int bytes = sizeof(short) * samples.Length;
+            Marshal.Copy(samples, 0, audioBuffer, samples.Length);
+            SDL_QueueAudio((uint)_audioDevice, audioBuffer, (uint)bytes);
         }
     }
 }
