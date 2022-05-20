@@ -1,13 +1,16 @@
-﻿using NesEmu.CPU;
+﻿using BizHawk.Emulation.Common;
+using NesEmu.CPU;
 using NesEmu.PPU;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using static SDL2.SDL;
 
 namespace NesEmu.Bus {
     //  _______________ $10000  _______________
@@ -38,7 +41,8 @@ namespace NesEmu.Bus {
     // | Zero Page     |       |               |
     // |_______________| $0000 |_______________|
     public partial class Bus {
-        public UInt64 CycleCount;
+        public ulong CycleCount;
+        public NesCpu CPU;
         public PPU.PPU PPU;
         public BizHawk.NES.APU APU;
         public ControllerRegister Controller1;
@@ -49,18 +53,92 @@ namespace NesEmu.Bus {
         int FrameCycle;
         bool IsNewFrame;
 
-        public Bus(NesCpu nes, Rom.Rom rom) {
-            PPU = new PPU.PPU(rom.ChrRom, rom.Mirroring);
-            APU = new BizHawk.NES.APU(nes, null, false);
+        int cpuCyclesLeft = 0;
+
+        public BlipBuffer blip = new BlipBuffer(4096);
+        int blipbuffsize = 4096;
+        int oldSample;
+
+        public byte DmaPage;
+        public byte DmaAddr;
+        public byte DmaData;
+        public bool DmaDummyRead;
+        public bool DmaActive;
+
+        public Bus(NesCpu nes, PPU.PPU ppu, BizHawk.NES.APU apu, Rom.Rom rom) {
+            CPU = nes;
+            PPU = ppu;
+            APU = apu;
             Controller1 = new ControllerRegister();
 
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;
             CycleCount = 0;
+
+            blip.Clear();
+            blip.SetRates(1786800 * 2, 44100);
+        }
+
+        public bool Clock() {
+            CycleCount++;
+            var isNewFrame = PPU.Clock();
+            if (isNewFrame) {
+                IsNewFrame = isNewFrame;
+                FrameCycle = 0;
+            }
+
+            if (CycleCount % 3 == 0) {
+                if (DmaActive) {
+                    if (DmaDummyRead) {
+                        if (CycleCount % 2 == 1) {
+                            DmaDummyRead = false;
+                        }
+                    } else {
+                        if (CycleCount % 2 == 0) {
+                            DmaData = MemRead((ushort)(DmaPage << 8 | DmaAddr));
+                        } else {
+                            PPU.OamData[DmaAddr] = DmaData;
+
+                            DmaAddr++;
+
+                            // Wrap around
+                            if (DmaAddr == 0) {
+                                DmaActive = false;
+                                DmaDummyRead = true;
+                            }
+                        }
+                    }
+                } else {
+                    APU.RunOneFirst();
+
+                    if (cpuCyclesLeft == 0) {
+                        cpuCyclesLeft = CPU.ExecuteInstruction();
+                    }
+                    cpuCyclesLeft--;
+
+                    APU.RunOneLast();
+
+                    int samle = APU.EmitSample();
+                    if (samle != oldSample) {
+                        blip.AddDelta(APU.sampleclock, samle - oldSample);
+                        oldSample = samle;
+                    }
+
+                    APU.sampleclock++;
+                }
+            }
+
+            return IsNewFrame;
         }
 
         public void Reset() {
             APU.NESHardReset();
+
+            DmaPage = 0x00;
+            DmaAddr = 0x00;
+            DmaData = 0x00;
+            DmaDummyRead = true;
+            DmaActive = false;
         }
 
         public bool GetNmiStatus() {
@@ -90,21 +168,6 @@ namespace NesEmu.Bus {
                     }
                     return *(ptr + address);
                 }
-            }
-        }
-
-        public int UnprocessedCycles;
-
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void TickCycles(byte cycleCount) {
-//#if NESTEST
-            CycleCount += cycleCount;
-
-            // The PPU Runs at three times the cpu clock rate, so multiply cycles by 3
-            var isNewFrame = PPU.IncrementCycle(cycleCount);
-            if (isNewFrame) {
-                IsNewFrame = isNewFrame;
-                FrameCycle = 0;
             }
         }
 

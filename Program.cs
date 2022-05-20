@@ -16,24 +16,14 @@ using NAudio.CoreAudioApi;
 using NAudio.Wave.SampleProviders;
 
 namespace NesEmu {
-    class Core {
+    class Program {
         static string fileName;
-        static NesCpu cpu;
         static UInt64 currentFrame = 0;
         static IntPtr Texture;
         static bool frameCap = true;
         static IntPtr window;
 
-        static BlipBuffer blip = new BlipBuffer(4096);
-        static int blipbuffsize = 4096;
-        static int oldSample;
-
-        static uint AUDIO_SAMPLE_FULL_THRESHOLD = 2048;
-        static int SAMPLES_PER_CALLBACK = 32;  // 735 = 44100 samples / 60 fps // 367.5? 1470
-
-        static IntPtr audioBuffer = Marshal.AllocHGlobal(16384);
-        static SDL_AudioSpec sdlWant, sdlHave;
-        static int _audioDevice;
+        static NesCore core;
 
         static void Main(string[] args){
             // Initilizes 
@@ -63,25 +53,7 @@ namespace NesEmu {
                 Console.WriteLine($"There was an issue creating the renderer. {SDL_GetError()}");
             }
 
-            int count = SDL_GetNumAudioDevices(0);
-            for (int i = 0; i < count; ++i) {
-                Console.WriteLine($"Device {i} {SDL_GetAudioDeviceName(i, 0)}");
-            }
-
-            sdlWant.channels = 2;
-            sdlWant.freq = 44100;
-            sdlWant.samples = (ushort)SAMPLES_PER_CALLBACK;
-            sdlWant.format = AUDIO_S16LSB;
-            var defaultDevice = SDL_GetAudioDeviceName(2, 0);
-            _audioDevice = (int)SDL_OpenAudioDevice(defaultDevice, 0, ref sdlWant, out sdlHave, 0); //(int)SDL_AUDIO_ALLOW_FORMAT_CHANGE);
-
-            if (_audioDevice == 0) {
-                Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
-            } else {
-                Console.WriteLine($"Audio Device Initialized: {SDL_GetAudioDeviceName((int)_audioDevice, 0)}");
-            }
-
-            SDL_PauseAudioDevice((uint)_audioDevice, 0);
+            
 
 #if !NESTEST
             Console.WriteLine("Enter the filename of the .nes file to run");
@@ -96,10 +68,7 @@ namespace NesEmu {
                 throw new FileNotFoundException("Couldn't find file, try again");
             }
             var rom = new Rom.Rom(romByteArr);
-            cpu = new NesCpu(rom);
-
-            blip.Clear();
-            blip.SetRates(1789773 * 2, 44100);
+            core = new NesCore(rom);
 
             var running = true;
             currentFrame = 0;
@@ -118,10 +87,10 @@ namespace NesEmu {
                     var key = e.key;
                     switch (e.type) {
                         case SDL_EventType.SDL_KEYDOWN:
-                            HandleKeyDown(cpu, key);
+                            HandleKeyDown(core, key);
                             break;
                         case SDL_EventType.SDL_KEYUP:
-                            HandleKeyUp(cpu, key);
+                            HandleKeyUp(core, key);
                             break;
                         case SDL_EventType.SDL_QUIT:
                             running = false;
@@ -130,12 +99,12 @@ namespace NesEmu {
                 }
 
                 do {
-                    Clock(cpu);
-                } while (!cpu.Bus.PollDrawFrame());
+                    core.Clock();
+                } while (!core.Bus.PollDrawFrame());
 
-                if (cpu.Bus.GetDrawFrame()) {
+                if (core.Bus.GetDrawFrame()) {
                     currentFrame++;
-                    cpu.Bus.PPU.DrawFrame(ref renderer, ref Texture);
+                    core.PPU.DrawFrame(ref renderer, ref Texture);
 
                     if (frameCap) {
                         while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
@@ -147,10 +116,10 @@ namespace NesEmu {
                         sw.Stop();
                         currentFrame = 0;
                         var framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
-                        SDL_SetWindowTitle(window, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)} {cpu.Bus.APU.sampleclock}");
+                        SDL_SetWindowTitle(window, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)} {core.APU.sampleclock}");
                         sw.Restart();
                     }
-                    PlayFrameSamples();
+                    core.PlayFrameSamples();
 
                     frameSync.Restart();
                 }
@@ -162,53 +131,15 @@ namespace NesEmu {
             SDL_Quit();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        private static void Clock(NesCpu cpu) {
-            cpu.Bus.APU.RunOneFirst();
-            cpu.ExecuteInstruction();
-            cpu.Bus.APU.RunOneLast();
-
-            int sample = cpu.Bus.APU.EmitSample();
-            if (sample != oldSample) {
-                blip.AddDelta(cpu.Bus.APU.sampleclock, sample - oldSample);
-                oldSample = sample;
-            }
-
-            cpu.Bus.APU.sampleclock++;
-        }
-
-        public static void PlayFrameSamples() {
-            var count = cpu.Bus.APU.sampleclock;
-            blip.EndFrame(count);
-            cpu.Bus.APU.sampleclock = 0;
-            var numAvailable = blip.SamplesAvailable();
-            var samples = new short[numAvailable * 2];
-            blip.ReadSamples(samples, numAvailable, true);
-
-            for (int i = numAvailable - 1; i >= 0; i--) {
-                samples[i * 2] = samples[i];
-                samples[i * 2 + 1] = samples[i];
-            }
-
-            if ((SDL_GetQueuedAudioSize((uint)_audioDevice) / sizeof(short)) < AUDIO_SAMPLE_FULL_THRESHOLD) {
-                int bytes = sizeof(short) * samples.Length;
-                Marshal.Copy(samples, 0, audioBuffer, samples.Length);
-                //SDL_SetWindowTitle(window, $"{count} samples {numAvailable} available");
-                SDL_QueueAudio((uint)_audioDevice, audioBuffer, (uint)bytes);
-            } else {
-                var x = 5;
-            }
-        }
-
-        private static void HandleKeyDown(NesCpu cpu, SDL_KeyboardEvent key) {
-            byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
+        private static void HandleKeyDown(NesCore core, SDL_KeyboardEvent key) {
+            byte currentKeys = core.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
                 case SDL_Keycode.SDLK_TAB:
                     frameCap = false;
                     break;
                 case SDL_Keycode.SDLK_r:
-                    cpu.Reset();
+                    core.Reset();
                     break;
                 case SDL_Keycode.SDLK_j:
                     currentKeys |= 0b10000000;
@@ -236,11 +167,11 @@ namespace NesEmu {
                     break;
             }
 
-            cpu.Bus.Controller1.Update(currentKeys);
+            core.Bus.Controller1.Update(currentKeys);
         }
 
-        private static void HandleKeyUp(NesCpu cpu, SDL_KeyboardEvent key) {
-            byte currentKeys = cpu.Bus.Controller1.GetAllButtons();
+        private static void HandleKeyUp(NesCore core, SDL_KeyboardEvent key) {
+            byte currentKeys = core.Bus.Controller1.GetAllButtons();
 
             switch (key.keysym.sym) {
                 case SDL_Keycode.SDLK_TAB:
@@ -272,7 +203,7 @@ namespace NesEmu {
                     break;
             }
 
-            cpu.Bus.Controller1.Update(currentKeys);
+            core.Bus.Controller1.Update(currentKeys);
         }
     }
 }

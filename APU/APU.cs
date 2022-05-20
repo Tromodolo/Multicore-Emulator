@@ -673,6 +673,7 @@ namespace BizHawk.NES {
 							//TODOME:
 							//nes.cpu.RDY = false;
 							//nes.dmc_dma_exec = true;
+							nes.Bus.DmaActive = true;
 
 							if (fill_glitch_2) {
 								// this will only run for one cycle and not actually run a DMA
@@ -1227,8 +1228,9 @@ namespace BizHawk.NES {
 
 
 			SyncIRQ();
-			//TODOME:
-			//nes._irq_apu = irq_pending;
+			if (irq_pending) {
+				//nes.Interrupt(NesCpu.InterruptType.IRQ);
+            }
 
 			// since the units run concurrently, the APU frame sequencer is ran last because
 			// it can change the output values of the pulse/triangle channels

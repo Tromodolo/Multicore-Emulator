@@ -32,9 +32,6 @@
     <None Update="pacman.nes">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="smb.nes">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="ss.nes">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

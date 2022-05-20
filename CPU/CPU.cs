@@ -35,8 +35,10 @@ namespace NesEmu.CPU {
         public UInt64 TotalCycles;
         public Bus.Bus Bus;
 
-        public NesCpu(Rom.Rom rom) {
-            Bus = new Bus.Bus(this, rom);
+        public byte NumCyclesExecuted;
+
+        public void RegisterBus(Bus.Bus bus) {
+            Bus = bus;
             Reset();
             Bus.Reset();
         }
@@ -69,9 +71,11 @@ namespace NesEmu.CPU {
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public void ExecuteInstruction() {
+        public byte ExecuteInstruction() {
             var op = GetOpFromByte(MemRead(ProgramCounter));
+            NumCyclesExecuted = 0;
             HandleInstruction(op);
+            return NumCyclesExecuted;
         }
 
         void SetStatusFlag(Flags flag) {

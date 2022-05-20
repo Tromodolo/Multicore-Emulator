@@ -54,13 +54,9 @@ namespace NesEmu.Bus {
             }
 
             if (address == 0x4014) {
-                // https://wiki.nesdev.com/w/index.php/PPU_programmer_reference#OAM_DMA_.28.244014.29_.3E_write
-                var startAddress = value << 8;
-                byte[] buffer = new byte[256];
-                for (var i = 0; i < 256; i++) {
-                    buffer[i] = MemRead((ushort)(startAddress + i));
-                }
-                PPU.WriteDMA(buffer);
+                DmaActive = true;
+                DmaPage = value;
+                DmaAddr = 0x00;
             }
 
             if (address >= 0x2008 && address <= PPUMirrorsEnd) {
