@@ -169,6 +169,7 @@ namespace NesEmu {
             SDL_DestroyWindow(window);
             SDL_Quit();
 
+            core.Dispose();
             Main(args);
         }
 
