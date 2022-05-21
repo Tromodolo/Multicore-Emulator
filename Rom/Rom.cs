@@ -1,3 +1,4 @@
+using NesEmu.Mapper;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,10 +18,13 @@ namespace NesEmu.Rom {
         const ushort PrgRomSize = 0x4000;
         const ushort ChrRomSize = 0x2000;
 
+        public byte PrgRomBankCount;
+        public byte ChrRomBankCount;
+
         public byte[] PrgRom;
         public byte[] ChrRom;
-        public byte Mapper;
         public ScreenMirroring Mirroring;
+        public IMapper Mapper;
 
         public Rom(byte[] rawBytes) {
             if (!(
@@ -54,6 +58,9 @@ namespace NesEmu.Rom {
                 }
             }
 
+            PrgRomBankCount = rawBytes[4];
+            ChrRomBankCount = rawBytes[5];
+
             var prgRomSize = rawBytes[4] * PrgRomSize;
             var chrRomSize = rawBytes[5] * ChrRomSize;
 
@@ -67,11 +74,19 @@ namespace NesEmu.Rom {
             }
             var chrRomStart = prgRomStart + prgRomSize;
 
-            Mapper = mapper;
             Mirroring = mirror;
             PrgRom = rawBytes[prgRomStart..(prgRomStart + prgRomSize)];
             ChrRom = chrRomSize == 0 ? new byte[ChrRomSize * 16] : rawBytes[chrRomStart..(chrRomStart + chrRomSize)];
+            Mapper = GetMapper(mapper);
 
+            Mapper.RegisterRom(this);
+        }
+
+        private IMapper GetMapper(byte mapperId) {
+            return mapperId switch {
+                0 => new NROM(),
+                _ => null,
+            };
         }
     }
 }

@@ -1,6 +1,7 @@
 ﻿using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -65,7 +66,8 @@ namespace NesEmu.Bus {
             }
 
             if (address >= 0x8000 && address <= 0xffff) {
-                // Attempting to write to ROM
+                Mapper.CpuWrite(address, value);
+                Debug.Assert(Mapper.DidMap());
             }
 
             // Unknown address
@@ -81,7 +83,6 @@ namespace NesEmu.Bus {
                         var mirror = (ushort)(address & 0b11111111111);
                         return *(ptr + mirror);
                     }
-                    //return VRAM[mirror];
                 }
 
                 if (address == 0x2000) {            //Ctrl
@@ -119,8 +120,9 @@ namespace NesEmu.Bus {
                 }
 
                 if (address >= 0x8000 && address <= 0xffff) {
-                    return ReadPrgRom(address);
+                    return Mapper.CpuRead(address);
                 }
+
                 // Unknown address
                 return 0;
             }

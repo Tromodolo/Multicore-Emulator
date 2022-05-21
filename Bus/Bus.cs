@@ -1,5 +1,6 @@
 ﻿using BizHawk.Emulation.Common;
 using NesEmu.CPU;
+using NesEmu.Mapper;
 using NesEmu.PPU;
 using System;
 using System.Collections.Generic;
@@ -45,6 +46,7 @@ namespace NesEmu.Bus {
         public NesCpu CPU;
         public PPU.PPU PPU;
         public BizHawk.NES.APU APU;
+        public IMapper Mapper;
         public ControllerRegister Controller1;
 
         byte[] VRAM;
@@ -70,6 +72,9 @@ namespace NesEmu.Bus {
             PPU = ppu;
             APU = apu;
             Controller1 = new();
+            Mapper = rom.Mapper;
+
+            PPU.RegisterBus(this);
 
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;

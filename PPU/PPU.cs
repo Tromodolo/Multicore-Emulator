@@ -15,11 +15,11 @@ namespace NesEmu.PPU {
         public byte[] OamData;
         public byte OamAddr;
         public ScreenMirroring Mirroring;
+        public Bus.Bus Bus;
 
         public int DotsDrawn;
         public int CurrentScanline;
         public ulong TotalCycles;
-
 
         byte InternalDataBuffer;
         MaskRegister Mask;
@@ -87,6 +87,10 @@ namespace NesEmu.PPU {
 
             T_Loopy = new();
             V_Loopy = new();
+        }
+
+        public void RegisterBus(Bus.Bus bus) {
+            Bus = bus;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -632,6 +636,11 @@ namespace NesEmu.PPU {
             var addr = V_Loopy.GetAddress();
             IncrementVramAddr();
 
+            var mapperValue = Bus.Mapper.PPURead(addr);
+            if (Bus.Mapper.DidMap()) {
+                return mapperValue;
+            }
+
             if (addr >= 0 && addr <= 0x1fff) {
                 var result = InternalDataBuffer;
                 InternalDataBuffer = ChrRom[addr];
@@ -663,6 +672,11 @@ namespace NesEmu.PPU {
         public void WriteData(byte value) {
             var addr = V_Loopy.GetAddress();
             IncrementVramAddr();
+
+            Bus.Mapper.PPUWrite(addr, value);
+            if (Bus.Mapper.DidMap()) {
+                return;
+            }
 
             if (addr >= 0 && addr <= 0x1fff) {
                 ChrRom[addr] = value;
