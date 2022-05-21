@@ -65,7 +65,7 @@ namespace NesEmu.CPU {
         public byte RunScanline() {
             var currentScanline = Bus.PPU.CurrentScanline;
             while (currentScanline == Bus.PPU.CurrentScanline) {
-                ExecuteInstruction();
+                //ExecuteInstruction();
             }
             return (byte)(Bus.PPU.CurrentScanline - 1);
         }

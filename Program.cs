@@ -98,8 +98,10 @@ namespace NesEmu {
                     }
                 }
 
+                var clock = 0;
                 do {
                     core.Clock();
+                    clock++;
                 } while (!core.Bus.PollDrawFrame());
 
                 if (core.Bus.GetDrawFrame()) {

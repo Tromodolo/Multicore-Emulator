@@ -27,7 +27,7 @@ namespace NesEmu.Bus {
             } else if (address == 0x2001) {     //Mask
                 PPU.WriteMask(value);
             } else if (address == 0x2002) {     //Status
-                throw new Exception("Trying to write to status REEEEEEEEEEEEEEEEEEEEEEEEEEE");
+                throw new("Trying to write to status REEEEEEEEEEEEEEEEEEEEEEEEEEE");
             } else if (address == 0x2003) {     //OAM Addr
                 PPU.WriteOAMAddr(value);
             } else if (address == 0x2004) {     //OAM Data

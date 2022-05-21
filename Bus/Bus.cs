@@ -55,7 +55,7 @@ namespace NesEmu.Bus {
 
         int cpuCyclesLeft = 0;
 
-        public BlipBuffer blip = new BlipBuffer(4096);
+        public BlipBuffer blip = new(4096);
         int blipbuffsize = 4096;
         int oldSample;
 
@@ -69,14 +69,14 @@ namespace NesEmu.Bus {
             CPU = nes;
             PPU = ppu;
             APU = apu;
-            Controller1 = new ControllerRegister();
+            Controller1 = new();
 
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;
             CycleCount = 0;
 
             blip.Clear();
-            blip.SetRates(1786800 * 2, 44100);
+            blip.SetRates(1789773, 44100);
         }
 
         public bool Clock() {
@@ -108,24 +108,23 @@ namespace NesEmu.Bus {
                             }
                         }
                     }
-                } else {
-                    APU.RunOneFirst();
-
-                    if (cpuCyclesLeft == 0) {
-                        cpuCyclesLeft = CPU.ExecuteInstruction();
-                    }
-                    cpuCyclesLeft--;
-
-                    APU.RunOneLast();
-
-                    int samle = APU.EmitSample();
-                    if (samle != oldSample) {
-                        blip.AddDelta(APU.sampleclock, samle - oldSample);
-                        oldSample = samle;
-                    }
-
-                    APU.sampleclock++;
                 }
+                APU.RunOneFirst();
+
+                if (cpuCyclesLeft == 0) {
+                    cpuCyclesLeft = CPU.ExecuteInstruction();
+                }
+                cpuCyclesLeft--;
+
+                APU.RunOneLast();
+
+                int samle = APU.EmitSample();
+                if (samle != oldSample) {
+                    blip.AddDelta(APU.sampleclock, samle - oldSample);
+                    oldSample = samle;
+                }
+
+                APU.sampleclock++;
             }
 
             return IsNewFrame;
