@@ -16,7 +16,7 @@ namespace NesEmu {
             List<byte> hexDump = new List<byte>();
             hexDump.Add(op.Code);
 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new();
             sb.Append($"{cpu.ProgramCounter:X4}  ");
 
             ushort memAddr, storedValue;

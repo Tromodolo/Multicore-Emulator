@@ -76,17 +76,17 @@ namespace NesEmu.PPU {
             Vram = new byte[4096];
 
             InternalDataBuffer = 0;
-            Mask = new MaskRegister();
-            Ctrl = new ControlRegister();
-            Status = new StatusRegister();
+            Mask = new();
+            Ctrl = new();
+            Status = new();
 
             TotalCycles = 0;
             CurrentScanline = 0;
             DotsDrawn = 0;
             NmiInterrupt = false;
 
-            T_Loopy = new Loopy();
-            V_Loopy = new Loopy();
+            T_Loopy = new();
+            V_Loopy = new();
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -776,7 +776,7 @@ namespace NesEmu.PPU {
                 rect.y = 0;
 
                 fixed (uint* pArray = FrameBuffer) {
-                    IntPtr intPtr = new IntPtr((void*)pArray);
+                    IntPtr intPtr = new(pArray);
 
                     SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, 256 * 4);
                 }

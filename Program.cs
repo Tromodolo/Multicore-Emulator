@@ -11,14 +11,11 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using BizHawk.Emulation.Common;
 using static SDL2.SDL;
-using NAudio.Wave;
-using NAudio.CoreAudioApi;
-using NAudio.Wave.SampleProviders;
 
 namespace NesEmu {
     class Program {
         static string fileName;
-        static UInt64 currentFrame = 0;
+        static ulong currentFrame = 0;
         static IntPtr Texture;
         static bool frameCap = true;
         static IntPtr window;
@@ -65,15 +62,16 @@ namespace NesEmu {
             try {
                 romByteArr = File.ReadAllBytes(fileName);
             } catch (Exception e) {
-                throw new FileNotFoundException("Couldn't find file, try again");
+                throw new("Couldn't find file, try again");
             }
-            var rom = new Rom.Rom(romByteArr);
+
+            Rom.Rom rom = new(romByteArr);
             core = new NesCore(rom);
 
             var running = true;
             currentFrame = 0;
-            Stopwatch sw = new Stopwatch();
-            Stopwatch frameSync = new Stopwatch();
+            Stopwatch sw = new();
+            Stopwatch frameSync = new();
             string windowTitle = $"Playing ${fileName} - FPS: 0";
 
             Texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);

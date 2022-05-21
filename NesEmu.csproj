@@ -44,8 +44,4 @@
     <Folder Include="Mapper\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <PackageReference Include="NAudio" Version="2.0.1" />
-  </ItemGroup>
-
 </Project>
