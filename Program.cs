@@ -11,6 +11,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using BizHawk.Emulation.Common;
 using static SDL2.SDL;
+using System.Collections.Generic;
 
 namespace NesEmu {
     class Program {
@@ -23,9 +24,60 @@ namespace NesEmu {
         static NesCore core;
 
         static void Main(string[] args){
+            Console.Clear();
+
+            Console.WriteLine("Select which rom to run from current folder:");
+            var dirFiles = Directory.GetFiles(Directory.GetCurrentDirectory());
+            List<string> roms = new List<string>();
+            foreach (var file in dirFiles) {
+                if (file.EndsWith(".nes") || file.EndsWith(".nez")) {
+                    roms.Add(file);
+                }
+            }
+
+            int selected = -1;
+            int marked = 0;
+            int initialRow = Console.CursorTop;
+            while (selected < 0) {
+                Console.CursorTop = initialRow;
+                var index = 0;
+                foreach (var romfile in roms) {
+                    if (index == marked) {
+                        Console.Write($"> {romfile}\n");
+                    } else {
+                        Console.Write($"  {romfile}\n");
+                    }
+                    index++;
+                }
+
+                var nextKey = Console.ReadKey();
+                if (nextKey.Key == ConsoleKey.DownArrow) {
+                    if (marked == roms.Count) {
+                        continue;
+                    }
+                    marked++;
+                } else if (nextKey.Key == ConsoleKey.UpArrow) {
+                    if (marked == 0) {
+                        continue;
+                    }
+                    marked--;
+                } else if (nextKey.Key == ConsoleKey.Enter) {
+                    selected = marked;
+                }
+            }
+            fileName = roms[selected];
+
+            byte[] romByteArr;
+            try {
+                romByteArr = File.ReadAllBytes(fileName);
+            } catch (Exception e) {
+                throw new("Couldn't find file, try again");
+            }
+
             // Initilizes 
             if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
                 Console.WriteLine($"There was an issue initilizing  {SDL_GetError()}");
+                return;
             }
 
             // Create a new window given a title, size, and passes it a flag indicating it should be shown.
@@ -34,11 +86,12 @@ namespace NesEmu {
                                               SDL_WINDOWPOS_UNDEFINED,
                                               256 * 3,
                                               240 * 3,
-                                              SDL_WindowFlags.SDL_WINDOW_RESIZABLE | 
+                                              SDL_WindowFlags.SDL_WINDOW_RESIZABLE |
                                               SDL_WindowFlags.SDL_WINDOW_SHOWN);
 
             if (window == IntPtr.Zero) {
                 Console.WriteLine($"There was an issue creating the window. {SDL_GetError()}");
+                return;
             }
 
             // Creates a new SDL hardware renderer using the default graphics device with VSYNC enabled.
@@ -48,21 +101,7 @@ namespace NesEmu {
 
             if (renderer == IntPtr.Zero) {
                 Console.WriteLine($"There was an issue creating the renderer. {SDL_GetError()}");
-            }
-
-            
-
-#if !NESTEST
-            Console.WriteLine("Enter the filename of the .nes file to run");
-            fileName = Console.ReadLine();
-#else
-            string fileName = "nestest.nes";
-#endif
-            byte[] romByteArr;
-            try {
-                romByteArr = File.ReadAllBytes(fileName);
-            } catch (Exception e) {
-                throw new("Couldn't find file, try again");
+                return;
             }
 
             Rom.Rom rom = new(romByteArr);
@@ -129,6 +168,8 @@ namespace NesEmu {
             SDL_DestroyRenderer(renderer);
             SDL_DestroyWindow(window);
             SDL_Quit();
+
+            Main(args);
         }
 
         private static void HandleKeyDown(NesCore core, SDL_KeyboardEvent key) {
