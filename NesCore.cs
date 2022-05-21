@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 using static SDL2.SDL;
 
 namespace NesEmu {
-    internal class NesCore {
+    internal class NesCore : IDisposable {
         public Bus.Bus Bus;
         public NesCpu CPU;
         public PPU.PPU PPU;
@@ -119,6 +119,10 @@ namespace NesEmu {
                 }
             }
 
+        }
+
+        public void Dispose() {
+            SDL_CloseAudioDevice((uint)audioDevice);
         }
     }
 }
