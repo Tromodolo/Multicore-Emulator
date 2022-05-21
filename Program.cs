@@ -43,8 +43,12 @@ namespace NesEmu {
                 var index = 0;
                 foreach (var romfile in roms) {
                     if (index == marked) {
+                        Console.BackgroundColor = ConsoleColor.DarkGreen;
+                        Console.ForegroundColor = ConsoleColor.Black;
                         Console.Write($"> {romfile}\n");
                     } else {
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
                         Console.Write($"  {romfile}\n");
                     }
                     index++;
@@ -52,7 +56,7 @@ namespace NesEmu {
 
                 var nextKey = Console.ReadKey();
                 if (nextKey.Key == ConsoleKey.DownArrow) {
-                    if (marked == roms.Count) {
+                    if (marked == roms.Count - 1) {
                         continue;
                     }
                     marked++;
@@ -62,6 +66,8 @@ namespace NesEmu {
                     }
                     marked--;
                 } else if (nextKey.Key == ConsoleKey.Enter) {
+                    Console.BackgroundColor = ConsoleColor.DarkGreen;
+                    Console.ForegroundColor = ConsoleColor.Black;
                     selected = marked;
                 }
             }

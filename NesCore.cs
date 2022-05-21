@@ -44,8 +44,12 @@ namespace NesEmu {
                 var index = 0;
                 foreach (var dev in devices) {
                     if (index == marked) {
+                        Console.BackgroundColor = ConsoleColor.DarkGreen;
+                        Console.ForegroundColor = ConsoleColor.Black;
                         Console.Write($"> {dev}\n");
                     } else {
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
                         Console.Write($"  {dev}\n");
                     }
                     index++;
@@ -53,7 +57,7 @@ namespace NesEmu {
 
                 var nextKey = Console.ReadKey();
                 if (nextKey.Key == ConsoleKey.DownArrow) {
-                    if (marked == devices.Count) {
+                    if (marked == devices.Count - 1) {
                         continue;
                     }
                     marked++;
@@ -63,6 +67,8 @@ namespace NesEmu {
                     }
                     marked--;
                 } else if (nextKey.Key == ConsoleKey.Enter) {
+                    Console.BackgroundColor = ConsoleColor.DarkGreen;
+                    Console.ForegroundColor = ConsoleColor.Black;
                     selected = marked;
                 }
             }
