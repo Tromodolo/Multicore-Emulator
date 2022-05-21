@@ -28,41 +28,46 @@ namespace NesEmu.Mapper {
         public byte CpuRead(ushort address) {
             Handled = false;
 
-            unsafe {
-                fixed (byte* ptr = PrgRom) {
-                    // Make sure the address lines up with the prg rom
-                    address -= 0x8000;
+            if (address >= 0x8000 && address <= 0xffff) {
+                unsafe {
+                    fixed (byte* ptr = PrgRom) {
+                        // Make sure the address lines up with the prg rom
+                        address -= 0x8000;
 
-                    if (!Is256) {
-                        // If the address is longer than the prg rom, mirror it down
-                        if (address >= 0x4000) {
-                            address = (ushort)(address % 0x4000);
+                        if (!Is256) {
+                            // If the address is longer than the prg rom, mirror it down
+                            if (address >= 0x4000) {
+                                address = (ushort)(address % 0x4000);
+                            }
                         }
-                    }
 
-                    Handled = true;
-                    return *(ptr + address);
+                        Handled = true;
+                        return *(ptr + address);
+                    }
                 }
             }
+            return 0;
         }
 
         public void CpuWrite(ushort address, byte value) {
             Handled = false;
 
-            unsafe {
-                fixed (byte* ptr = PrgRom) {
-                    // Make sure the address lines up with the prg rom
-                    address -= 0x8000;
+            if (address >= 0x8000 && address <= 0xffff) {
+                unsafe {
+                    fixed (byte* ptr = PrgRom) {
+                        // Make sure the address lines up with the prg rom
+                        address -= 0x8000;
 
-                    if (!Is256) {
-                        // If the address is longer than the prg rom, mirror it down
-                        if (address >= 0x4000) {
-                            address = (ushort)(address % 0x4000);
+                        if (!Is256) {
+                            // If the address is longer than the prg rom, mirror it down
+                            if (address >= 0x4000) {
+                                address = (ushort)(address % 0x4000);
+                            }
                         }
-                    }
 
-                    Handled = true;
-                    *(ptr + address) = value;
+                        Handled = true;
+                        *(ptr + address) = value;
+                    }
                 }
             }
         }
