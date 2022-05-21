@@ -72,7 +72,7 @@ namespace NesEmu.PPU {
             Mirroring = mirroring;
             OamAddr = 0;
             OamData = new byte[256];
-            PaletteTable = new byte[32];
+            PaletteTable = new byte[128];
             Vram = new byte[4096];
 
             InternalDataBuffer = 0;

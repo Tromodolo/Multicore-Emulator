@@ -18,6 +18,11 @@ namespace NesEmu.Bus {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MemWrite(ushort address, byte value) {
+            Mapper.CpuWrite(address, value);
+            if (Mapper.DidMap()) {
+                return;
+            }
+
             if (address >= RamMirrorStart && address <= RamMirrorsEnd) {
                 var mirror = (ushort)(address & 0b11111111111);
                 VRAM[mirror] = value;
@@ -65,11 +70,6 @@ namespace NesEmu.Bus {
                 MemWrite(mirror, value);
             }
 
-            if (address >= 0x8000 && address <= 0xffff) {
-                Mapper.CpuWrite(address, value);
-                Debug.Assert(Mapper.DidMap());
-            }
-
             // Unknown address
             return;
             
@@ -78,6 +78,11 @@ namespace NesEmu.Bus {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte MemRead(ushort address) {
             unsafe {
+                var mapperValue = Mapper.CpuRead(address);
+                if (Mapper.DidMap()) {
+                    return mapperValue;
+                }
+
                 if (address >= RamMirrorStart && address <= RamMirrorsEnd) {
                     fixed (byte* ptr = VRAM) {
                         var mirror = (ushort)(address & 0b11111111111);
@@ -117,10 +122,6 @@ namespace NesEmu.Bus {
                 if (address >= 0x2008 && address <= PPUMirrorsEnd) {
                     var mirror = (ushort)(address & 0b00100000_00000111);
                     return MemRead(mirror);
-                }
-
-                if (address >= 0x8000 && address <= 0xffff) {
-                    return Mapper.CpuRead(address);
                 }
 
                 // Unknown address
