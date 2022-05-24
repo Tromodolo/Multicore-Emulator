@@ -9,7 +9,9 @@ namespace NesEmu.Rom {
     public enum ScreenMirroring {
         Vertical, 
         Horizontal,
-        FourScreen
+        FourScreen,
+        OneScreenLower,
+        OneScreenUpper
     }
 
     // https://wiki.nesdev.com/w/index.php?title=INES
@@ -74,13 +76,13 @@ namespace NesEmu.Rom {
                 var prgRomMsb = rawBytes[9] & 0b1111;
                 var chrRomMsb = (rawBytes[9] & 0b11110000) >> 4;
 
-                if ((prgRomLsb | (prgRomMsb << 8)) <= 15) {
+                if ((prgRomLsb | (prgRomMsb << 8)) <= 16) {
                     prgRomSize = prgRomLsb * 0x4000;
                 } else {
                     prgRomSize = prgRomLsb | (prgRomMsb << 8);
                 }
 
-                if ((chrRomLsb | (chrRomMsb << 8)) <= 15) {
+                if ((chrRomLsb | (chrRomMsb << 8)) <= 16) {
                     chrRomSize = chrRomLsb * 0x2000;
                 } else {
                     chrRomSize = chrRomLsb | (chrRomMsb << 8);
@@ -113,13 +115,13 @@ namespace NesEmu.Rom {
                 var prgSize = rawBytes[4];
                 var chrSize = rawBytes[5];
 
-                if (prgSize <= 15) {
+                if (prgSize <= 16) {
                     prgRomSize = prgSize * 0x4000;
                 } else {
                     prgRomSize = prgSize;
                 }
 
-                if (chrSize <= 15) {
+                if (chrSize <= 16) {
                     chrRomSize = chrSize * 0x2000;
                 } else {
                     chrRomSize = chrSize;
@@ -147,6 +149,7 @@ namespace NesEmu.Rom {
         private IMapper GetMapper(byte mapperId) {
             return mapperId switch {
                 0 => new NROM(),
+                1 => new MMC1(),
                 2 => new UxROM(),
                 _ => throw new NotImplementedException($"Mapper {mapperId} not implemented"),
             };
