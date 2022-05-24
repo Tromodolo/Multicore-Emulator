@@ -1,4 +1,4 @@
-﻿using NesEmu.Rom;
+using NesEmu.Rom;
 using SDL2;
 using System;
 using System.Collections.Generic;
@@ -14,7 +14,6 @@ namespace NesEmu.PPU {
         public byte[] Vram;
         public byte[] OamData;
         public byte OamAddr;
-        public ScreenMirroring Mirroring;
         public Bus.Bus Bus;
 
         public int DotsDrawn;
@@ -67,9 +66,8 @@ namespace NesEmu.PPU {
         bool SpriteZeroPossible = false;
         bool SpriteZeroRendered = false;
 
-        public PPU(byte[] chrRom, ScreenMirroring mirroring) {
+        public PPU(byte[] chrRom) {
             ChrRom = chrRom;
-            Mirroring = mirroring;
             OamAddr = 0;
             OamData = new byte[256];
             PaletteTable = new byte[128];
@@ -115,7 +113,7 @@ namespace NesEmu.PPU {
             ushort nametable = (ushort)(vector / 0x400);
 
             ushort nameTableAddr = vector;
-            switch (Mirroring) {
+            switch (Bus.Mapper.GetMirroring()) {
                 case ScreenMirroring.Vertical:
                     if (nametable is 1 or 2) {
                         nameTableAddr -= 0x400;
@@ -130,8 +128,8 @@ namespace NesEmu.PPU {
                     //    nameTableAddr -= 0x800;
                     //}
                     break;
-                default:
                 case ScreenMirroring.FourScreen:
+                default:
                     break;
             }
             return nameTableAddr;

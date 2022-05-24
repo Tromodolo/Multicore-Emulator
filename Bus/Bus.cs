@@ -74,8 +74,6 @@ namespace NesEmu.Bus {
             Controller1 = new();
             Mapper = rom.Mapper;
 
-            PPU.RegisterBus(this);
-
             VRAM = new byte[2048];
             PrgRom = rom.PrgRom;
             CycleCount = 0;
@@ -86,11 +84,15 @@ namespace NesEmu.Bus {
 
         public bool Clock() {
             CycleCount++;
+
             var isNewFrame = PPU.Clock();
             if (isNewFrame) {
                 IsNewFrame = isNewFrame;
                 FrameCycle = 0;
             }
+
+            Mapper.SetProgramCounter(CPU.ProgramCounter);
+            Mapper.SetScanline(PPU.CurrentScanline);
 
             if (CycleCount % 3 == 0) {
                 if (DmaActive) {

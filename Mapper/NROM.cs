@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NesEmu.Rom;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -24,6 +25,10 @@ namespace NesEmu.Mapper {
         public bool DidMap() {
             return Handled;
         }
+
+        public void SetProgramCounter(int pc) { }
+
+        public void SetScanline(int scanline) { }
 
         public byte CpuRead(ushort address) {
             Handled = false;
@@ -84,6 +89,10 @@ namespace NesEmu.Mapper {
 
         public void PPUWrite(ushort address, byte value) {
             Handled = false;
+        }
+
+        public ScreenMirroring GetMirroring() {
+            return CurrentRom.Mirroring;
         }
     }
 }

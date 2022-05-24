@@ -1,4 +1,4 @@
-using BizHawk.Emulation.Common;
+﻿using BizHawk.Emulation.Common;
 using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
@@ -19,12 +19,13 @@ namespace NesEmu {
         int audioDevice;
 
         public NesCore(Rom.Rom rom) {
-            PPU = new(rom.ChrRom, rom.Mirroring);
+            PPU = new(rom.ChrRom);
             CPU = new();
             APU = new(CPU, null, false);
             Bus = new(CPU, PPU, APU, rom);
 
             CPU.RegisterBus(Bus);
+            PPU.RegisterBus(Bus);
 
             Console.CursorTop++;
 

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using NesEmu.Rom;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,8 +7,12 @@ using System.Threading.Tasks;
 
 namespace NesEmu.Mapper {
     public interface IMapper {
-        public bool DidMap();
+        public ScreenMirroring GetMirroring();
 
+        public void SetProgramCounter(int pc);
+        public void SetScanline(int scanline);
+
+        public bool DidMap();
         public void RegisterRom(Rom.Rom rom);
 
         public byte CpuRead(ushort address);
