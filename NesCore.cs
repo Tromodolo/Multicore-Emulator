@@ -1,4 +1,4 @@
-﻿using BizHawk.Emulation.Common;
+using BizHawk.Emulation.Common;
 using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
@@ -47,9 +47,9 @@ namespace NesEmu {
                         Console.BackgroundColor = ConsoleColor.DarkGreen;
                         Console.ForegroundColor = ConsoleColor.Black;
                         Console.Write($"> {dev}\n");
-                    } else {
                         Console.BackgroundColor = ConsoleColor.Black;
                         Console.ForegroundColor = ConsoleColor.White;
+                    } else {
                         Console.Write($"  {dev}\n");
                     }
                     index++;
@@ -67,8 +67,6 @@ namespace NesEmu {
                     }
                     marked--;
                 } else if (nextKey.Key == ConsoleKey.Enter) {
-                    Console.BackgroundColor = ConsoleColor.DarkGreen;
-                    Console.ForegroundColor = ConsoleColor.Black;
                     selected = marked;
                 }
             }

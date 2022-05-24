@@ -46,9 +46,9 @@ namespace NesEmu {
                         Console.BackgroundColor = ConsoleColor.DarkGreen;
                         Console.ForegroundColor = ConsoleColor.Black;
                         Console.Write($"> {romfile}\n");
-                    } else {
                         Console.BackgroundColor = ConsoleColor.Black;
                         Console.ForegroundColor = ConsoleColor.White;
+                    } else {
                         Console.Write($"  {romfile}\n");
                     }
                     index++;
@@ -66,8 +66,6 @@ namespace NesEmu {
                     }
                     marked--;
                 } else if (nextKey.Key == ConsoleKey.Enter) {
-                    Console.BackgroundColor = ConsoleColor.DarkGreen;
-                    Console.ForegroundColor = ConsoleColor.Black;
                     selected = marked;
                 }
             }
