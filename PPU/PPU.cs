@@ -241,6 +241,7 @@ namespace NesEmu.PPU {
                                             var xPosition = OamData[(index * 4) + 3];
 
                                             if (yPosition == 0 && tileIndex == 0 && attributes == 0 && xPosition == 0) {
+                                                index++;
                                                 continue;
                                             }
 
@@ -294,8 +295,35 @@ namespace NesEmu.PPU {
                                         }
 
                                     } else {
-                                        // 8x16 pixels
-                                        throw new NotImplementedException("Roms with 8x16 sprites are currently not supported");
+                                        if (flipVertical) {
+                                            if (CurrentScanline - sprite.YPosition < 8) {
+                                                patternAddrLo = (ushort)(
+                                                    (sprite.TileId & 1) << 12 |
+                                                    (((sprite.TileId & 0xFE) + 1) * 16) |
+                                                    (byte)(7 - (CurrentScanline - sprite.YPosition) & 0b111)
+                                                );
+                                            } else {
+                                                patternAddrLo = (ushort)(
+                                                    (sprite.TileId & 1) << 12 |
+                                                    ((sprite.TileId & 0xFE) * 16) |
+                                                    (byte)(7 - (CurrentScanline - sprite.YPosition) & 0b111)
+                                                );
+                                            }
+                                        } else {
+                                            if (CurrentScanline - sprite.YPosition < 8) {
+                                                patternAddrLo = (ushort)(
+                                                    (sprite.TileId & 1) << 12 |
+                                                    ((sprite.TileId & 0xFE) * 16) |
+                                                    (byte)((CurrentScanline - sprite.YPosition) & 0b111)
+                                                );
+                                            } else {
+                                                patternAddrLo = (ushort)(
+                                                    (sprite.TileId & 1) << 12 |
+                                                    (((sprite.TileId & 0xFE) + 1) * 16) |
+                                                    (byte)((CurrentScanline - sprite.YPosition) & 0b111)
+                                                );
+                                            }
+                                        }
                                     }
 
                                     patternAddrHi = (ushort)(patternAddrLo + 8);
