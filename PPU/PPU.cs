@@ -209,8 +209,8 @@ namespace NesEmu.PPU {
                             break;
                         case 2:
                             BgNextTileAttribute = Vram[MirrorVramAddr((ushort)(0x23c0 |
-                                ((V_Loopy.Nametable & 0b10) << 11) |
-                                ((V_Loopy.Nametable & 1) << 10) |
+                                ((V_Loopy.Nametable & 1) << 11) |
+                                ((V_Loopy.Nametable & 0b10) << 10) |
                                 ((V_Loopy.CoarseY >> 2) << 3) |
                                 (V_Loopy.CoarseX >> 2)))
                             ];
