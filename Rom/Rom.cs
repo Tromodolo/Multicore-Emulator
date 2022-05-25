@@ -54,7 +54,7 @@ namespace NesEmu.Rom {
             if ((control1 & 0b1000) != 0) {
                 mirror = ScreenMirroring.FourScreen;
             } else {
-                if ((control1 & 0b1) != 0) {
+                if ((control1 & 0b1) == 0) {
                     mirror = ScreenMirroring.Horizontal;
                 } else {
                     mirror = ScreenMirroring.Vertical;
