@@ -9,7 +9,6 @@ namespace NesEmu.Mapper {
     public class NROM : IMapper {
         Rom.Rom CurrentRom;
 
-        byte[] ChrRom;
         byte[] PrgRom;
         bool Is256;
         bool Handled;
@@ -17,7 +16,6 @@ namespace NesEmu.Mapper {
         public void RegisterRom(Rom.Rom rom) {
             CurrentRom = rom;
 
-            ChrRom = rom.ChrRom;
             PrgRom = rom.PrgRom;
             Is256 = PrgRom.Length > 0x4000;
         }
@@ -79,11 +77,6 @@ namespace NesEmu.Mapper {
 
         public byte PPURead(ushort address) {
             Handled = false;
-
-            if (address >= 0 && address <= 0x1999) {
-                Handled = true;
-                return ChrRom[address];
-            }
             return 0;
         }
 
