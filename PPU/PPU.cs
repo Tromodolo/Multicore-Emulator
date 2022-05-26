@@ -722,7 +722,10 @@ namespace NesEmu.PPU {
             }
 
             if (addr >= 0x3000 && addr <= 0x3eff) {
-                throw new Exception("This should normally not be reached");
+                // Normally undefined address space, but some games depend on this like Zelda
+                var result = InternalDataBuffer;
+                InternalDataBuffer = Vram[MirrorVramAddr(addr)];
+                return result;
             }
 
             if (addr == 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
