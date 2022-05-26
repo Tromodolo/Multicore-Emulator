@@ -51,7 +51,7 @@ namespace NesEmu.Mapper {
             HasPrgRam = PrgRam.Length > 0;
 
             PrgRomBank1 = 0;
-            PrgRomBank2 = 1;
+            PrgRomBank2 = (PrgRom.Length - 0x4000) / 0x4000;
 
             ChrRomBank1 = 0;
             ChrRomBank2 = 1;
@@ -189,7 +189,7 @@ namespace NesEmu.Mapper {
         private void UpdateChrBanks() {
             if (ChrMode == 0) {
                 var bank1 = ChrRomBank1;
-                bank1 >>= 1;
+                bank1 &= ~1;
                 bank1 *= CHR_SIZE;
                 ChrRomOffset1 = bank1;
                 ChrRomOffset2 = ChrRomBank1 + CHR_SIZE;
@@ -201,7 +201,7 @@ namespace NesEmu.Mapper {
 
         private void UpdatePrgBanks(int value) {
             HasPrgRam = (value & 0b10000) > 0;
-            value &= 0b1111;
+            value &= 0b11111;
             if (PrgMode == 0 || PrgMode == 1) {
                 PrgRomBank1 = value;
                 PrgRomBank2 = value + 1;
