@@ -1,4 +1,4 @@
-﻿using NesEmu.Rom;
+using NesEmu.Rom;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -48,7 +48,7 @@ namespace NesEmu.Mapper {
             PrgRom = rom.PrgRom;
             PrgRam = rom.PrgRam;
             CurrentMirroring = rom.Mirroring;
-            HasPrgRam = true;
+            HasPrgRam = PrgRam.Length > 0;
 
             PrgRomBank1 = 0;
             PrgRomBank2 = 1;
