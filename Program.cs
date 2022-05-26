@@ -120,6 +120,14 @@ namespace NesEmu {
             string windowTitle = $"Playing ${fileName} - FPS: 0";
 
             Texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);
+            IntPtr activeController;
+            for (int i = 0; i < SDL_NumJoysticks(); i++) {
+                if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
+                    continue;
+                }
+                activeController = SDL_GameControllerOpen(i);
+                break;
+            }
 
             sw.Start();
             frameSync.Start();
