@@ -209,8 +209,8 @@ namespace NesEmu.PPU {
                             break;
                         case 2:
                             BgNextTileAttribute = Vram[MirrorVramAddr((ushort)(0x23c0 |
-                                ((V_Loopy.Nametable & 1) << 11) |
-                                ((V_Loopy.Nametable & 0b10) << 10) |
+                                (V_Loopy.NametableY << 11) |
+                                (V_Loopy.NametableX << 10) |
                                 ((V_Loopy.CoarseY >> 2) << 3) |
                                 (V_Loopy.CoarseX >> 2)))
                             ];
@@ -544,7 +544,8 @@ namespace NesEmu.PPU {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteCtrl(byte value) {
-            T_Loopy.Nametable = (byte)(value & 0b11);
+            T_Loopy.NametableX = (byte)(value & 0b01);
+            T_Loopy.NametableY = (byte)((value & 0b10) >> 1);
 
             var beforeNmi = Ctrl.ShouldGenerateVBlank();
             Ctrl.Update(value);
@@ -565,7 +566,7 @@ namespace NesEmu.PPU {
                     V_Loopy.CoarseX = 0;
 
                     // Flip the X bit
-                    V_Loopy.Nametable ^= 1;
+                    V_Loopy.NametableX = (byte)(~V_Loopy.NametableX);
                 } else {
                     V_Loopy.CoarseX++;
                 }
@@ -583,7 +584,7 @@ namespace NesEmu.PPU {
                     if (V_Loopy.CoarseY == 29) {
                         V_Loopy.CoarseY = 0;
                         // Flip the Y bit
-                        V_Loopy.Nametable ^= 0b10;
+                        V_Loopy.NametableY = (byte)~V_Loopy.NametableY;
                     } else if (V_Loopy.CoarseY == 31) {
                         V_Loopy.CoarseY = 0;
                     } else {
@@ -596,7 +597,7 @@ namespace NesEmu.PPU {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetAddressX() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
-                V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b10) | (T_Loopy.Nametable & 0b1));
+                V_Loopy.NametableX = T_Loopy.NametableX;//(byte)((V_Loopy.Nametable & 0b1) | ( & 0b10));
                 V_Loopy.CoarseX = T_Loopy.CoarseX;
             }
         }
@@ -604,7 +605,7 @@ namespace NesEmu.PPU {
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetAddressY() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
-                V_Loopy.Nametable = (byte)((V_Loopy.Nametable & 0b1) | (T_Loopy.Nametable & 0b10));
+                V_Loopy.NametableY = T_Loopy.NametableY;//(byte)((V_Loopy.Nametable & 0b10) | (T_Loopy.Nametable & 0b1));
                 V_Loopy.FineY = T_Loopy.FineY;
                 V_Loopy.CoarseY = T_Loopy.CoarseY;
             }
