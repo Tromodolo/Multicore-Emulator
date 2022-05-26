@@ -1,4 +1,4 @@
-﻿using NesEmu.CPU;
+using NesEmu.CPU;
 using NesEmu.PPU;
 using System;
 using System.Diagnostics;
@@ -78,8 +78,10 @@ namespace NesEmu {
                 throw new("Couldn't find file, try again");
             }
 
+            SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
+            SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
             // Initilizes 
-            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
+            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
                 Console.WriteLine($"There was an issue initilizing  {SDL_GetError()}");
                 return;
             }
@@ -132,6 +134,14 @@ namespace NesEmu {
                             break;
                         case SDL_EventType.SDL_KEYUP:
                             HandleKeyUp(core, key);
+                            break;
+                        case SDL_EventType.SDL_CONTROLLERBUTTONDOWN:
+                            SDL_GameControllerButton down = (SDL_GameControllerButton)e.cbutton.button;
+                            HandleButtonDown(core, down);
+                            break;
+                        case SDL_EventType.SDL_CONTROLLERBUTTONUP: 
+                            SDL_GameControllerButton up = (SDL_GameControllerButton)e.cbutton.button;
+                            HandleButtonUp(core, up);
                             break;
                         case SDL_EventType.SDL_QUIT:
                             running = false;
@@ -245,6 +255,84 @@ namespace NesEmu {
                     currentKeys &= 0b11111101;
                     break;
                 case SDL_Keycode.SDLK_d:
+                    currentKeys &= 0b11111110;
+                    break;
+                case SDL_Keycode.SDLK_ESCAPE:
+                    running = false;
+                    break;
+            }
+
+            core.Bus.Controller1.Update(currentKeys);
+        }
+
+        private static void HandleButtonDown(NesCore core, SDL_GameControllerButton key) {
+            byte currentKeys = core.Bus.Controller1.GetAllButtons();
+
+            switch (key) {
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                    frameCap = false;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_GUIDE:
+                    core.Reset();
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_B:
+                    currentKeys |= 0b10000000;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A:
+                    currentKeys |= 0b01000000;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_BACK:
+                    currentKeys |= 0b00100000;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_START:
+                    currentKeys |= 0b00010000;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_UP:
+                    currentKeys |= 0b00001000;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                    currentKeys |= 0b00000100;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                    currentKeys |= 0b00000010;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+                    currentKeys |= 0b00000001;
+                    break;
+            }
+
+            core.Bus.Controller1.Update(currentKeys);
+        }
+
+        private static void HandleButtonUp(NesCore core, SDL_GameControllerButton key) {
+            byte currentKeys = core.Bus.Controller1.GetAllButtons();
+
+            switch (key) {
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                    frameCap = true;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_B:
+                    currentKeys &= 0b01111111;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_A:
+                    currentKeys &= 0b10111111;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_BACK:
+                    currentKeys &= 0b11011111;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_START:
+                    currentKeys &= 0b11101111;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_UP:
+                    currentKeys &= 0b11110111;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+                    currentKeys &= 0b11111011;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+                    currentKeys &= 0b11111101;
+                    break;
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
                     currentKeys &= 0b11111110;
                     break;
             }
