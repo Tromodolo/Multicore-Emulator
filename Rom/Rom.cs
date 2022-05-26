@@ -126,6 +126,8 @@ namespace NesEmu.Rom {
                 } else {
                     chrRomSize = chrSize;
                 }
+
+                ChrRam = new byte[0x8000];
             }
 
             var skip_trainer = (control1 & 0b100) != 0;
@@ -137,6 +139,16 @@ namespace NesEmu.Rom {
                 prgRomStart += 0;
             }
             var chrRomStart = prgRomStart + prgRomSize;
+
+            // Fills PRG with random data, which some games need to seed rng
+            Random rnd = new Random(Guid.NewGuid().GetHashCode());
+            unsafe {
+                fixed(byte* ram = PrgRam) {
+                    for (var i = 0; i < PrgRam.Length; i++) {
+                        *(ram + i) = (byte)rnd.Next(byte.MaxValue);
+                    }
+                }
+            }
 
             Mirroring = mirror;
             PrgRom = rawBytes[prgRomStart..(prgRomStart + prgRomSize)];
