@@ -127,7 +127,7 @@ namespace NesEmu.Rom {
                     chrRomSize = chrSize;
                 }
 
-                ChrRam = new byte[0x8000];
+                PrgRam = new byte[0x8000];
             }
 
             var skip_trainer = (control1 & 0b100) != 0;

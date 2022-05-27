@@ -72,7 +72,7 @@ namespace NesEmu.Mapper {
 
         public byte CpuRead(ushort address) {
             Handled = false;
-            if (HasPrgRam && address >= 0x6000 && address < 0x8000) {
+            if (address >= 0x6000 && address < 0x8000) {
                 Handled = true;
                 return PrgRam[address - 0x6000];
             } else if (address >= 0x8000 && address < 0xC000) {
@@ -88,7 +88,7 @@ namespace NesEmu.Mapper {
         public void CpuWrite(ushort address, byte value) {
             Handled = false;
 
-            if (HasPrgRam && address >= 0x6000 && address < 0x8000) {
+            if (address >= 0x6000 && address < 0x8000) {
                 Handled = true;
                 PrgRam[address - 0x6000] = value;
             } else if (address >= 0x8000 && address <= 0xFFFF) {
