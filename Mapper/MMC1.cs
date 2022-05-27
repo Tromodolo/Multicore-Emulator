@@ -1,6 +1,7 @@
 using NesEmu.Rom;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -41,6 +42,8 @@ namespace NesEmu.Mapper {
 
         bool Handled;
 
+        FileStream savefile;
+
         public void RegisterRom(Rom.Rom rom) {
             CurrentRom = rom;
 
@@ -58,6 +61,24 @@ namespace NesEmu.Mapper {
 
             ShiftRegister = 0;
             ShiftCount = 0;
+
+            var gameName = rom.Filename.Split('\\').LastOrDefault();
+            savefile = new FileStream($"{gameName}.sav", FileMode.OpenOrCreate);
+            using MemoryStream ms = new MemoryStream();
+            int read;
+            while ((read = savefile.Read(PrgRam, 0, PrgRam.Length)) > 0) {
+                ms.Write(PrgRam, 0, read);
+            }
+            var readArr = ms.ToArray();
+            if (readArr.Length > 0) {
+                PrgRam = ms.ToArray();
+            }
+        }
+
+        private void PersistSave() {
+            savefile.Seek(0, SeekOrigin.Begin);
+            savefile.Write(PrgRam);
+            savefile.Flush();
         }
 
         public bool DidMap() {
@@ -91,6 +112,7 @@ namespace NesEmu.Mapper {
             if (address >= 0x6000 && address < 0x8000) {
                 Handled = true;
                 PrgRam[address - 0x6000] = value;
+                PersistSave();
             } else if (address >= 0x8000 && address <= 0xFFFF) {
                 if (LastPC == CurrentPC) {
                     return;

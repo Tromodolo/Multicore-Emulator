@@ -22,6 +22,7 @@ namespace NesEmu {
         static IntPtr window;
 
         static NesCore core;
+        static bool running;
 
         static void Main(string[] args){
             Console.Clear();
@@ -110,10 +111,10 @@ namespace NesEmu {
                 return;
             }
 
-            Rom.Rom rom = new(romByteArr);
+            Rom.Rom rom = new(romByteArr, fileName);
             core = new NesCore(rom);
 
-            var running = true;
+            running = true;
             currentFrame = 0;
             Stopwatch sw = new();
             Stopwatch frameSync = new();

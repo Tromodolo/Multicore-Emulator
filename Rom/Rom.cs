@@ -33,7 +33,11 @@ namespace NesEmu.Rom {
         // NES 2.0 values
         public byte SubMapper;
 
-        public Rom(byte[] rawBytes) {
+        public string Filename;
+
+        public Rom(byte[] rawBytes, string filename) {
+            Filename = filename;
+
             //NES 1.0 
             if (!(
                 rawBytes[0] == NesTag[0] &&
