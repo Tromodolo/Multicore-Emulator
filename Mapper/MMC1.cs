@@ -62,12 +62,6 @@ namespace NesEmu.Mapper {
             ShiftRegister = 0;
             ShiftCount = 0;
 
-            if (savefile != null) {
-                Persist();
-                savefile.Close();
-                savefile = null;
-            }
-
             var gameName = rom.Filename.Split('\\').LastOrDefault();
             savefile = new FileStream($"{gameName}.sav", FileMode.OpenOrCreate);
             using MemoryStream ms = new MemoryStream();
@@ -81,10 +75,14 @@ namespace NesEmu.Mapper {
             }
         }
 
-        private void Persist() {
-            savefile.Seek(0, SeekOrigin.Begin);
-            savefile.Write(PrgRam);
-            savefile.Flush();
+        public void Persist() {
+            if (savefile != null) {
+                savefile.Seek(0, SeekOrigin.Begin);
+                savefile.Write(PrgRam);
+                savefile.Flush();
+                savefile.Close();
+                savefile = null;
+            }
         }
 
         public bool DidMap() {

@@ -139,6 +139,7 @@ namespace NesEmu.Bus {
 
         public void Reset() {
             APU.NESHardReset();
+            Mapper.Persist();
 
             DmaPage = 0x00;
             DmaAddr = 0x00;

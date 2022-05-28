@@ -1,4 +1,4 @@
-﻿using BizHawk.Emulation.Common;
+using BizHawk.Emulation.Common;
 using NAudio.Wave;
 using NesEmu.CPU;
 using System;
@@ -71,6 +71,7 @@ namespace NesEmu {
         public void Reset() {
             APU.NESHardReset();
             CPU.Reset();
+            Bus.Reset();
             bp.Clear();
         }
 
@@ -100,6 +101,7 @@ namespace NesEmu {
         }
 
         public void Dispose() {
+            Bus.Mapper.Persist();
             bp.Clear();
             dso.Dispose();
         }

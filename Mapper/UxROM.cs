@@ -67,6 +67,10 @@ namespace NesEmu.Mapper {
             return CurrentRom.Mirroring;
         }
 
+        public void Persist() {
+            return;
+        }
+
         public void Save(BinaryWriter writer) {
             writer.Write(CurrentBank);
             writer.Write(LastBankAddr);

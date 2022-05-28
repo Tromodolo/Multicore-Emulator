@@ -22,6 +22,7 @@ namespace NesEmu.Mapper {
         public byte PPURead(ushort address);
         public void PPUWrite(ushort address, byte value);
 
+        public void Persist();
         public void Save(BinaryWriter writer);
         public void Load(BinaryReader reader);
     }
