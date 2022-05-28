@@ -62,6 +62,12 @@ namespace NesEmu.Mapper {
             ShiftRegister = 0;
             ShiftCount = 0;
 
+            if (savefile != null) {
+                Persist();
+                savefile.Close();
+                savefile = null;
+            }
+
             var gameName = rom.Filename.Split('\\').LastOrDefault();
             savefile = new FileStream($"{gameName}.sav", FileMode.OpenOrCreate);
             using MemoryStream ms = new MemoryStream();
@@ -75,7 +81,7 @@ namespace NesEmu.Mapper {
             }
         }
 
-        private void PersistSave() {
+        private void Persist() {
             savefile.Seek(0, SeekOrigin.Begin);
             savefile.Write(PrgRam);
             savefile.Flush();
@@ -112,7 +118,7 @@ namespace NesEmu.Mapper {
             if (address >= 0x6000 && address < 0x8000) {
                 Handled = true;
                 PrgRam[address - 0x6000] = value;
-                PersistSave();
+                Persist();
             } else if (address >= 0x8000 && address <= 0xFFFF) {
                 if (LastPC == CurrentPC) {
                     return;
