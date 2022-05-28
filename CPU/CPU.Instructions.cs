@@ -14,10 +14,6 @@ namespace NesEmu.CPU {
             RESET
         }
 
-        OpCode GetOpFromByte(byte value) {
-            return OpCodeList.OpCodes[value];
-        }
-
         bool IsPageCross(ushort addr, ushort addr2) {
             return (addr & 0xFF00) != (addr2 & 0xFF00);
         }
@@ -213,7 +209,7 @@ namespace NesEmu.CPU {
                 NMI();
                 isInNmi = true;
 
-                op = GetOpFromByte(MemRead(ProgramCounter));
+                op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
                 ProgramCounter++;
                 mode = op.Mode;
                 PCCopy = ProgramCounter;

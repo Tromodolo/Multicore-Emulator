@@ -72,7 +72,7 @@ namespace NesEmu.CPU {
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ExecuteInstruction() {
-            var op = GetOpFromByte(MemRead(ProgramCounter));
+            var op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
             NumCyclesExecuted = 0;
             HandleInstruction(op);
             return NumCyclesExecuted;
