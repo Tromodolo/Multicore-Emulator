@@ -241,5 +241,47 @@ namespace NesEmu.Mapper {
                 PrgRomBank2 = (PrgRom.Length - 0x4000) / 0x4000;
             }
         }
+
+        public void Save(BinaryWriter writer) {
+            writer.Write(HasPrgRam);
+            writer.Write(PrgRomBank1);
+            writer.Write(PrgRomBank2);
+            writer.Write(ChrRomBank1);
+            writer.Write(ChrRomBank2);
+            writer.Write(ChrRomOffset1);
+            writer.Write(ChrRomOffset2);
+            writer.Write(PrgMode);
+            writer.Write(ChrMode);
+            writer.Write(ShiftRegister);
+            writer.Write(ShiftCount);
+            writer.Write(CurrentPC);
+            writer.Write(LastPC);
+            writer.Write(LastControl);
+            writer.Write((int)CurrentMirroring);
+            writer.Write(ChrRom);
+            writer.Write(PrgRom);
+            writer.Write(PrgRam);
+        }
+
+        public void Load(BinaryReader reader) {
+            HasPrgRam = reader.ReadBoolean();
+            PrgRomBank1 = reader.ReadInt32();
+            PrgRomBank2 = reader.ReadInt32();
+            ChrRomBank1 = reader.ReadInt32();
+            ChrRomBank2 = reader.ReadInt32();
+            ChrRomOffset1 = reader.ReadInt32();
+            ChrRomOffset2 = reader.ReadInt32();
+            PrgMode = reader.ReadInt32();
+            ChrMode = reader.ReadInt32();
+            ShiftRegister = reader.ReadInt32();
+            ShiftCount = reader.ReadInt32();
+            CurrentPC = reader.ReadInt32();
+            LastPC = reader.ReadInt32();
+            LastControl = reader.ReadInt32();
+            CurrentMirroring = (ScreenMirroring)reader.ReadInt32();
+            ChrRom = reader.ReadBytes(ChrRom.Length);
+            PrgRom = reader.ReadBytes(PrgRom.Length);
+            PrgRam = reader.ReadBytes(PrgRam.Length);
+        }
     }
 }

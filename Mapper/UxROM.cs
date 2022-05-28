@@ -1,6 +1,7 @@
 ﻿using NesEmu.Rom;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -64,6 +65,18 @@ namespace NesEmu.Mapper {
 
         public ScreenMirroring GetMirroring() {
             return CurrentRom.Mirroring;
+        }
+
+        public void Save(BinaryWriter writer) {
+            writer.Write(CurrentBank);
+            writer.Write(LastBankAddr);
+            writer.Write(PrgRom);
+        }
+
+        public void Load(BinaryReader reader) {
+            CurrentBank = reader.ReadByte();
+            LastBankAddr = reader.ReadInt32();
+            PrgRom = reader.ReadBytes(PrgRom.Length);
         }
     }
 }

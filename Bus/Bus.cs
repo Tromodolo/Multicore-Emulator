@@ -177,6 +177,34 @@ namespace NesEmu.Bus {
             }
         }
 
+        public void Save(BinaryWriter writer) {
+            writer.Write(CycleCount);
+            writer.Write(VRAM);
+            writer.Write(FrameCycle);
+            writer.Write(IsNewFrame);
+            writer.Write(cpuCyclesLeft);
+            writer.Write(DmaPage);
+            writer.Write(DmaAddr);
+            writer.Write(DmaData);
+            writer.Write(DmaDummyRead);
+            writer.Write(DmaActive);
+            Mapper.Save(writer);
+        }
+
+        public void Load(BinaryReader reader) {
+            CycleCount = reader.ReadUInt64();
+            VRAM = reader.ReadBytes(VRAM.Length);
+            FrameCycle = reader.ReadInt32();
+            IsNewFrame = reader.ReadBoolean();
+            cpuCyclesLeft = reader.ReadInt32();
+            DmaPage = reader.ReadByte();
+            DmaAddr = reader.ReadByte();
+            DmaData = reader.ReadByte();
+            DmaDummyRead = reader.ReadBoolean();
+            DmaActive = reader.ReadBoolean();
+            Mapper.Load(reader);
+        }
+
         public void DumpPPUMemory() {
             var ChrRom = PPU.ChrRom;
             var Vram = PPU.Vram;

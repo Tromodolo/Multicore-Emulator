@@ -89,6 +89,10 @@ namespace NesEmu.Rom {
             return (Status & (1 << 7)) > 1;
         }
 
+        public byte Get() {
+            return Status;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(byte data) {
             Status = data;

@@ -3,6 +3,7 @@ using NesEmu.Rom;
 using SDL2;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
@@ -90,6 +91,66 @@ namespace NesEmu.PPU {
 
         public void RegisterBus(Bus.Bus bus) {
             Bus = bus;
+        }
+
+        public void Save(BinaryWriter writer) {
+            writer.Write(ChrRom);
+            writer.Write(PaletteTable);
+            writer.Write(Vram);
+            writer.Write(OamData);
+            writer.Write(OamAddr);
+            writer.Write(DotsDrawn);
+            writer.Write(CurrentScanline);
+            writer.Write(TotalCycles);
+            writer.Write(InternalDataBuffer);
+            writer.Write(Mask.Get());
+            writer.Write(Ctrl.Get());
+            writer.Write(Status.GetSnapshot());
+            writer.Write(NmiInterrupt);
+            writer.Write(T_Loopy.GetAddress());
+            writer.Write(V_Loopy.GetAddress());
+            writer.Write(fineX);
+            writer.Write(WriteLatch);
+            writer.Write(BgNextTileId);
+            writer.Write(BgNextTileAttribute);
+            writer.Write(BgNextTileLsb);
+            writer.Write(BgNextTileMsb);
+            writer.Write(BgShifterPatternLo);
+            writer.Write(BgShifterPatternHi);
+            writer.Write(BgShifterAttributeLo);
+            writer.Write(BgShifterAttributeHi);
+            writer.Write(SpriteShifterPatternLo);
+            writer.Write(SpriteShifterPatternHi);
+        }
+
+        public void Load(BinaryReader reader) {
+            ChrRom = reader.ReadBytes(ChrRom.Length);
+            PaletteTable = reader.ReadBytes(PaletteTable.Length);
+            Vram = reader.ReadBytes(Vram.Length);
+            OamData = reader.ReadBytes(OamData.Length);
+            OamAddr = reader.ReadByte();
+            DotsDrawn = reader.ReadInt32();
+            CurrentScanline = reader.ReadInt32();
+            TotalCycles = reader.ReadUInt64();
+            InternalDataBuffer = reader.ReadByte();
+            Mask.Update(reader.ReadByte());
+            Ctrl.Update(reader.ReadByte());
+            Status.Update(reader.ReadByte());
+            NmiInterrupt = reader.ReadBoolean();
+            T_Loopy.Update(reader.ReadUInt16());
+            V_Loopy.Update(reader.ReadUInt16());
+            fineX = reader.ReadByte();
+            WriteLatch = reader.ReadBoolean();
+            BgNextTileId = reader.ReadByte();
+            BgNextTileAttribute = reader.ReadByte();
+            BgNextTileLsb = reader.ReadByte();
+            BgNextTileMsb = reader.ReadByte();
+            BgShifterPatternLo = reader.ReadUInt16();
+            BgShifterPatternHi = reader.ReadUInt16();
+            BgShifterAttributeLo = reader.ReadUInt16();
+            BgShifterAttributeHi = reader.ReadUInt16();
+            SpriteShifterPatternLo = reader.ReadBytes(8);
+            SpriteShifterPatternHi = reader.ReadBytes(8);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

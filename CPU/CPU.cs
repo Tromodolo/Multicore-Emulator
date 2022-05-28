@@ -85,5 +85,29 @@ namespace NesEmu.CPU {
         void ClearStatusFlag(Flags flag) {
             Status &= ~flag;
         }
+
+        public void Save(BinaryWriter writer) {
+            writer.Write(Accumulator);
+            writer.Write(RegisterX);
+            writer.Write(RegisterY);
+            writer.Write(ProgramCounter);
+            writer.Write(StackPointer);
+            writer.Write(Running);
+            writer.Write((int)Status);
+            writer.Write(TotalCycles);
+            writer.Write(NumCyclesExecuted);
+        }
+
+        public void Load(BinaryReader reader) {
+            Accumulator = reader.ReadByte();
+            RegisterX = reader.ReadByte();
+            RegisterY = reader.ReadByte();
+            ProgramCounter = reader.ReadUInt16();
+            StackPointer = reader.ReadByte();
+            Running = reader.ReadBoolean();
+            Status = (Flags)reader.ReadInt32();
+            TotalCycles = reader.ReadUInt64();
+            NumCyclesExecuted = reader.ReadByte();
+        }
     }
 }

@@ -74,6 +74,10 @@ namespace NesEmu.PPU {
             return colors;
         }
 
+        public byte Get() {
+            return Status;
+        }
+
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(byte data) {
             Status = data;

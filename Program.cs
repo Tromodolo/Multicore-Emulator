@@ -24,6 +24,9 @@ namespace NesEmu {
         static NesCore core;
         static bool running;
 
+        static bool isShiftPressed;
+        static bool isSaveStateHappening;
+
         static void Main(string[] args){
             Console.Clear();
 
@@ -137,8 +140,10 @@ namespace NesEmu {
                 while(running) {
                     var clock = 0;
                     do {
-                        core.Clock();
-                        clock++;
+                        if (!isSaveStateHappening) {
+                            core.Clock();
+                            clock++;
+                        }
                     } while (!core.Bus.PollDrawFrame());
 
                     if (core.Bus.GetDrawFrame()) {
@@ -201,6 +206,18 @@ namespace NesEmu {
             Main(args);
         }
 
+        private static void HandleSaveState(int slot) {
+            if (isShiftPressed) {
+                isSaveStateHappening = true;
+                core.SaveState(slot);
+                isSaveStateHappening = false;
+            } else {
+                isSaveStateHappening = true;
+                core.LoadState(slot);
+                isSaveStateHappening = false;
+            }
+        }
+
         private static void HandleKeyDown(NesCore core, SDL_KeyboardEvent key) {
             byte currentKeys = core.Bus.Controller1.GetAllButtons();
 
@@ -235,6 +252,33 @@ namespace NesEmu {
                 case SDL_Keycode.SDLK_d:
                     currentKeys |= 0b00000001;
                     break;
+                case SDL_Keycode.SDLK_F1:
+                    HandleSaveState(1);
+                    break;
+                case SDL_Keycode.SDLK_F2:
+                    HandleSaveState(2);
+                    break;
+                case SDL_Keycode.SDLK_F3:
+                    HandleSaveState(3);
+                    break;
+                case SDL_Keycode.SDLK_F4:
+                    HandleSaveState(4);
+                    break;
+                case SDL_Keycode.SDLK_F5:
+                    HandleSaveState(5);
+                    break;
+                case SDL_Keycode.SDLK_F6:
+                    HandleSaveState(6);
+                    break;
+                case SDL_Keycode.SDLK_F7:
+                    HandleSaveState(7);
+                    break;
+                case SDL_Keycode.SDLK_F8:
+                    HandleSaveState(8);
+                    break;
+                case SDL_Keycode.SDLK_LSHIFT:
+                    isShiftPressed = true;
+                    break;  
             }
 
             core.Bus.Controller1.Update(currentKeys);
@@ -273,6 +317,9 @@ namespace NesEmu {
                     break;
                 case SDL_Keycode.SDLK_ESCAPE:
                     running = false;
+                    break;
+                case SDL_Keycode.SDLK_LSHIFT:
+                    isShiftPressed = false;
                     break;
             }
 

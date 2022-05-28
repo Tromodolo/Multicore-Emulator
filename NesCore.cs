@@ -3,6 +3,7 @@ using NAudio.Wave;
 using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -38,6 +39,7 @@ namespace NesEmu {
         public NesCpu CPU;
         public PPU.PPU PPU;
         public BizHawk.NES.APU APU;
+        public Rom.Rom Rom;
 
         int SamplesPerFrame = (44100 / 60) + 1;
 
@@ -49,6 +51,7 @@ namespace NesEmu {
             CPU = new();
             APU = new(CPU, null, false);
             Bus = new(CPU, PPU, APU, rom);
+            Rom = rom;
 
             CPU.RegisterBus(Bus);
             PPU.RegisterBus(Bus);
@@ -78,10 +81,11 @@ namespace NesEmu {
 
             var numAvailable = Bus.blip.SamplesAvailable();
             var samples = new short[SamplesPerFrame];
-            Bus.blip.ReadSamples(samples, numAvailable, false);
+            var samplesSelected = Math.Min(numAvailable, SamplesPerFrame);
+            Bus.blip.ReadSamples(samples, samplesSelected, false);
 
             if (numAvailable != SamplesPerFrame) {
-                samples = Resample(samples, numAvailable, SamplesPerFrame);
+                samples = Resample(samples, samplesSelected, SamplesPerFrame);
             }
 
             if (bp.internalBuffer.Count == 0) {
@@ -98,6 +102,34 @@ namespace NesEmu {
         public void Dispose() {
             bp.Clear();
             dso.Dispose();
+        }
+
+        public void SaveState(int slot) {
+            var gameName = Rom.Filename.Split('\\').LastOrDefault();
+            gameName.Replace(".nes", "");
+            gameName.Replace(".nez", "");
+            var stateFileName = $"{gameName}.{slot}.state";
+
+            var fileStream = new FileStream(stateFileName, FileMode.OpenOrCreate);
+            var binaryWriter = new BinaryWriter(fileStream);
+            CPU.Save(binaryWriter);
+            PPU.Save(binaryWriter);
+            Bus.Save(binaryWriter);
+            fileStream.Close();
+        }
+
+        public void LoadState(int slot) {
+            var gameName = Rom.Filename.Split('\\').LastOrDefault();
+            gameName.Replace(".nes", "");
+            gameName.Replace(".nez", "");
+            var stateFileName = $"{gameName}.{slot}.state";
+
+            var fileStream = new FileStream(stateFileName, FileMode.Open);
+            var binaryReader = new BinaryReader(fileStream);
+            CPU.Load(binaryReader);
+            PPU.Load(binaryReader);
+            Bus.Load(binaryReader);
+            fileStream.Close();
         }
 
         // Taken from BizHawk, their license should be in my license file - Tromo

@@ -55,5 +55,9 @@ namespace NesEmu.PPU {
         public byte GetSnapshot() {
             return (byte)Status;
         }
+
+        public void Update(byte value) {
+            Status = (StatusRegisterStatus)value;
+        }
     }
 }
