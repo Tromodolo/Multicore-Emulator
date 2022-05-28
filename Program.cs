@@ -132,9 +132,42 @@ namespace NesEmu {
 
             sw.Start();
             frameSync.Start();
+
+            var coreThread = new Thread(() => {
+                while(running) {
+                    var clock = 0;
+                    do {
+                        core.Clock();
+                        clock++;
+                    } while (!core.Bus.PollDrawFrame());
+
+                    if (core.Bus.GetDrawFrame()) {
+                        currentFrame++;
+                        core.PPU.DrawFrame(ref renderer, ref Texture);
+
+                        if (frameCap) {
+                            while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
+                                continue;
+                            }
+                        }
+
+                        if (currentFrame % 60 == 0 && currentFrame != 0) {
+                            sw.Stop();
+                            currentFrame = 0;
+                            var framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
+                            SDL_SetWindowTitle(window, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)} {core.APU.sampleclock}");
+                            sw.Restart();
+                        }
+                        core.PlayFrameSamples();
+
+                        frameSync.Restart();
+                    }
+                }
+            });
+            coreThread.Start();
+
             // Main loop for the program
             while (running) {
-                // Check to see if there are any events and continue to do so until the queue is empty.
                 while (SDL_PollEvent(out SDL_Event e) == 1) {
                     var key = e.key;
                     switch (e.type) {
@@ -148,7 +181,7 @@ namespace NesEmu {
                             SDL_GameControllerButton down = (SDL_GameControllerButton)e.cbutton.button;
                             HandleButtonDown(core, down);
                             break;
-                        case SDL_EventType.SDL_CONTROLLERBUTTONUP: 
+                        case SDL_EventType.SDL_CONTROLLERBUTTONUP:
                             SDL_GameControllerButton up = (SDL_GameControllerButton)e.cbutton.button;
                             HandleButtonUp(core, up);
                             break;
@@ -156,34 +189,6 @@ namespace NesEmu {
                             running = false;
                             break;
                     }
-                }
-
-                var clock = 0;
-                do {
-                    core.Clock();
-                    clock++;
-                } while (!core.Bus.PollDrawFrame());
-
-                if (core.Bus.GetDrawFrame()) {
-                    currentFrame++;
-                    core.PPU.DrawFrame(ref renderer, ref Texture);
-
-                    if (frameCap) {
-                        while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
-                            continue;
-                        }
-                    }
-
-                    if (currentFrame % 60 == 0 && currentFrame != 0) {
-                        sw.Stop();
-                        currentFrame = 0;
-                        var framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
-                        SDL_SetWindowTitle(window, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)} {core.APU.sampleclock}");
-                        sw.Restart();
-                    }
-                    core.PlayFrameSamples();
-
-                    frameSync.Restart();
                 }
             }
 
