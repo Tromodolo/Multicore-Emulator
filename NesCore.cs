@@ -106,8 +106,8 @@ namespace NesEmu {
 
         public void SaveState(int slot) {
             var gameName = Rom.Filename.Split('\\').LastOrDefault();
-            gameName.Replace(".nes", "");
-            gameName.Replace(".nez", "");
+            gameName = gameName.Replace(".nes", "");
+            gameName = gameName.Replace(".nez", "");
             var stateFileName = $"{gameName}.{slot}.state";
 
             var fileStream = new FileStream(stateFileName, FileMode.OpenOrCreate);
@@ -120,8 +120,8 @@ namespace NesEmu {
 
         public void LoadState(int slot) {
             var gameName = Rom.Filename.Split('\\').LastOrDefault();
-            gameName.Replace(".nes", "");
-            gameName.Replace(".nez", "");
+            gameName = gameName.Replace(".nes", "");
+            gameName = gameName.Replace(".nez", "");
             var stateFileName = $"{gameName}.{slot}.state";
 
             var fileStream = new FileStream(stateFileName, FileMode.Open);
