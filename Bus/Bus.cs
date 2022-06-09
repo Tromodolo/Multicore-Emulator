@@ -67,6 +67,17 @@ namespace NesEmu.Bus {
         public bool DmaDummyRead;
         public bool DmaActive;
 
+        public bool APUIRQQueued;
+        public bool DMCDmaActive;
+        public bool DMCRealign;
+
+        // The NTSC has this weird bug for DMC DMA where it might sometimes cause 
+        // some registers to read twice and corrupt reads
+        // This needs to be implemented eventually but for now it's alright
+        //public bool reread_trigger;
+        //public int do_the_reread_2002, do_the_reread_2007, do_the_reread_cont_1, do_the_reread_cont_2;
+        //public int reread_opp_4016, reread_opp_4017;
+
         public Bus(NesCpu nes, PPU.PPU ppu, BizHawk.NES.APU apu, Rom.Rom rom) {
             CPU = nes;
             PPU = ppu;
@@ -95,7 +106,7 @@ namespace NesEmu.Bus {
             Mapper.SetScanline(PPU.CurrentScanline);
 
             if (CycleCount % 3 == 0) {
-                if (DmaActive) {
+                if (DmaActive && APU.dmc_dma_countdown != 1 && !DMCRealign) {
                     if (DmaDummyRead) {
                         if (CycleCount % 2 == 1) {
                             DmaDummyRead = false;
@@ -116,9 +127,47 @@ namespace NesEmu.Bus {
                         }
                     }
                 }
+
+                DMCRealign = false;
+
+                if (APU.dmc_dma_countdown > 0) {
+                    if (APU.dmc_dma_countdown == 1) {
+                        DMCRealign = true;
+                    }
+
+                    // By this point the cpu should be frozen, if it is not, then we are in a multi-write opcode, add another cycle delay
+                    if (!CPU.Ready && !CPU.FreezeExecution && (APU.dmc_dma_countdown == APU.DMC_RDY_check)) {
+                        APU.dmc_dma_countdown += 2;
+                    }
+
+                    CPU.Ready = false;
+                    DMCDmaActive = true;
+                    APU.dmc_dma_countdown--;
+                    if (APU.dmc_dma_countdown == 0) {
+                        APU.RunDMCFetch();
+
+                        DMCDmaActive = false;
+                        APU.dmc_dma_countdown = -1;
+
+                        if ((APU.dmc.timer == 2) && (APU.dmc.out_bits_remaining == 0)) {
+                            if (APU.dmc.sample_length != 0) {
+                                APU.dmc.fill_glitch = true;
+                            }
+                        }
+
+                        if ((APU.dmc.timer == 4) && (APU.dmc.out_bits_remaining == 0) && (APU.dmc.sample_length == 1)) {
+                            APU.dmc.fill_glitch_2 = true;
+                        }
+                    }
+                }
+
                 APU.RunOneFirst();
 
-                if (cpuCyclesLeft == 0) {
+                // TODO: Add mapper IRQ signal
+                // APUIRQQueued || Mapper.GetIRQSignal()
+                CPU.IRQPending = APUIRQQueued;
+
+                if (cpuCyclesLeft <= 0) {
                     cpuCyclesLeft = CPU.ExecuteInstruction();
                 }
                 cpuCyclesLeft--;
@@ -132,6 +181,10 @@ namespace NesEmu.Bus {
                 }
 
                 APU.sampleclock++;
+
+                if (!CPU.Ready && !DMCDmaActive && !DmaActive) {
+                    CPU.Ready = true;
+                }
             }
 
             return IsNewFrame;

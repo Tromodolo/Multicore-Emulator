@@ -133,7 +133,7 @@ namespace NesEmu.CPU {
             }
 
             byte result = (byte)sum;
-            // Fuck knows what this means
+            // If value has wrapped, set overflow flag
             if (((value ^ result) & (result ^ Accumulator) & 0x80) != 0) {
                 SetStatusFlag(Flags.Overflow);
             } else {
@@ -159,6 +159,12 @@ namespace NesEmu.CPU {
 #endif
             NumCyclesExecuted += 2;
             Interrupt(InterruptType.NMI);
+        }
+
+        public void IRQ() {
+            NumCyclesExecuted += 2;
+            IRQPending = false;
+            Interrupt(InterruptType.IRQ);
         }
 
         public void Interrupt(InterruptType interrupt) {
@@ -191,8 +197,6 @@ namespace NesEmu.CPU {
             }
         }
 
-        bool isInNmi = false;
-
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void HandleInstruction(OpCode op) {
             if (op == null) {
@@ -202,27 +206,36 @@ namespace NesEmu.CPU {
             AddressingMode mode;
             ushort PCCopy;
 
-            if (Bus.GetNmiStatus()) {
-                //var trace = Trace.Log(this);
-                //Console.Write(trace);
-                //Console.WriteLine("===NMI===");
-                NMI();
-                isInNmi = true;
-
+            // IRQ and NMI should still happen during cpu being frozen, but they just won't be able to continue
+            if (IRQPending && (Status & Flags.InterruptDisable) == 0) {
+                IRQ();
                 op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
+                FreezeExecution = !Ready;
+                if (FreezeExecution) {
+                    return;
+                }
+                ProgramCounter++;
+                mode = op.Mode;
+                PCCopy = ProgramCounter;
+            } else if (Bus.GetNmiStatus()) {
+                NMI();
+                op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
+                FreezeExecution = !Ready;
+                if (FreezeExecution) {
+                    return;
+                }
                 ProgramCounter++;
                 mode = op.Mode;
                 PCCopy = ProgramCounter;
             } else {
+                FreezeExecution = !Ready;
+                if (FreezeExecution) {
+                    return;
+                }
                 ProgramCounter++;
                 mode = op.Mode;
                 PCCopy = ProgramCounter;
             }
-
-            //if (isInNmi) {
-            //    var trace = Trace.Log(this);
-            //    Console.Write(trace);
-            //}          
 
             switch (op.Name) {
                 case "NOP":

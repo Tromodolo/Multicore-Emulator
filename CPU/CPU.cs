@@ -37,6 +37,14 @@ namespace NesEmu.CPU {
 
         public byte NumCyclesExecuted;
 
+        /// <summary>
+        /// If RDY flag is set low, it means the CPU should just stop execution, but still allow interrupts
+        /// <br>NMI should for example switch to the interrupt vector, but not do anything more</br>
+        /// </summary>
+        public bool Ready;
+        public bool FreezeExecution;
+        public bool IRQPending;
+
         public void RegisterBus(Bus.Bus bus) {
             Bus = bus;
             Reset();
@@ -56,22 +64,13 @@ namespace NesEmu.CPU {
             ProgramCounter = MemReadShort(0xFFFC);
 #endif
             Running = true;
-        }
-
-#if NESTEST
-        FileStream stream = File.Open("nestest-log.log", FileMode.OpenOrCreate);
-#endif
-
-        public byte RunScanline() {
-            var currentScanline = Bus.PPU.CurrentScanline;
-            while (currentScanline == Bus.PPU.CurrentScanline) {
-                //ExecuteInstruction();
-            }
-            return (byte)(Bus.PPU.CurrentScanline - 1);
+            Ready = true;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ExecuteInstruction() {
+            FreezeExecution = false;
+
             var op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
             NumCyclesExecuted = 0;
             HandleInstruction(op);
