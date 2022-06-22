@@ -1,39 +1,11 @@
-using BizHawk.Emulation.Common;
-using NAudio.Wave;
-using NesEmu.CPU;
+﻿using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
 using static SDL2.SDL;
 
 namespace NesEmu {
-    internal class BufferProvider : WaveProvider16 {
-        public Queue<short> internalBuffer = new Queue<short>();
-
-        public void Clear() {
-            internalBuffer.Clear();
-        }
-
-        public void TryQueue(short[] samples) {
-            for (var i = 0; i < samples.Length; i++) {
-                internalBuffer.Enqueue(samples[i]);
-            }
-        }
-        
-        public override int Read(short[] buffer, int offset, int sampleCount) {
-            Queue<short> outBuff = new Queue<short>();
-            var samplesTaken = Math.Min(sampleCount, internalBuffer.Count);
-            for (var i = 0; i < samplesTaken; i++) {
-                buffer[i] = internalBuffer.Dequeue();
-            }
-            return samplesTaken;
-        }
-    }
-
     internal class NesCore : IDisposable {
         public Bus.Bus Bus;
         public NesCpu CPU;
@@ -42,9 +14,8 @@ namespace NesEmu {
         public Rom.Rom Rom;
 
         int SamplesPerFrame = (44100 / 60) + 1;
-
-        DirectSoundOut dso;
-        BufferProvider bp;
+        SDL_AudioSpec sdlSpec;
+        int audioDevice;
 
         public NesCore(Rom.Rom rom) {
             PPU = new(rom.ChrRom);
@@ -56,9 +27,65 @@ namespace NesEmu {
             CPU.RegisterBus(Bus);
             PPU.RegisterBus(Bus);
 
-            dso = new DirectSoundOut(60);
-            bp = new BufferProvider();
-            dso.Init(bp);
+            Console.CursorTop++;
+
+            List<string> devices = new List<string>();
+            int count = SDL_GetNumAudioDevices(0);
+            for (int i = 0; i < count; ++i) {
+                devices.Add(SDL_GetAudioDeviceName(i, 0));
+            }
+
+            Console.WriteLine($"Select your audio device: ");
+
+            int selected = -1;
+            int marked = 0;
+            int initialRow = Console.CursorTop;
+            while (selected < 0) {
+                Console.CursorTop = initialRow;
+                var index = 0;
+                foreach (var dev in devices) {
+                    if (index == marked) {
+                        Console.BackgroundColor = ConsoleColor.DarkGreen;
+                        Console.ForegroundColor = ConsoleColor.Black;
+                        Console.Write($"> {dev}\n");
+                        Console.BackgroundColor = ConsoleColor.Black;
+                        Console.ForegroundColor = ConsoleColor.White;
+                    } else {
+                        Console.Write($"  {dev}\n");
+                    }
+                    index++;
+                }
+
+                var nextKey = Console.ReadKey();
+                if (nextKey.Key == ConsoleKey.DownArrow) {
+                    if (marked == devices.Count - 1) {
+                        continue;
+                    }
+                    marked++;
+                } else if (nextKey.Key == ConsoleKey.UpArrow) {
+                    if (marked == 0) {
+                        continue;
+                    }
+                    marked--;
+                } else if (nextKey.Key == ConsoleKey.Enter) {
+                    selected = marked;
+                }
+            }
+            var usedDevice = devices[selected];
+
+            sdlSpec.channels = 1;
+            sdlSpec.freq = 44100;
+            sdlSpec.samples = 4096;
+            sdlSpec.format = AUDIO_S16LSB;
+            audioDevice = (int)SDL_OpenAudioDevice(usedDevice, 0, ref sdlSpec, out SDL_AudioSpec received, 0);
+
+            if (audioDevice == 0) {
+                Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
+            } else {
+                Console.WriteLine($"Audio Device Initialized: {usedDevice}");
+            }
+
+            SDL_PauseAudioDevice((uint)audioDevice, 0);
         }
 
         /// <summary>
@@ -72,7 +99,6 @@ namespace NesEmu {
             APU.NESHardReset();
             CPU.Reset();
             Bus.Reset();
-            bp.Clear();
         }
 
         public void PlayFrameSamples() {
@@ -89,21 +115,21 @@ namespace NesEmu {
                 samples = Resample(samples, samplesSelected, SamplesPerFrame);
             }
 
-            if (bp.internalBuffer.Count == 0) {
-                Console.WriteLine("Audio has drifted and buffer is empty");
+            var numQueued = SDL_GetQueuedAudioSize((uint)audioDevice);
+            if (numQueued < 4096*3) {
+                unsafe {
+                    fixed (short* ptr = samples) {
+                        IntPtr intPtr = new(ptr);
+                        SDL_QueueAudio((uint)audioDevice, intPtr, (uint)(numAvailable * 2));
+                    }
+                }
             }
-            if (bp.internalBuffer.Count <= SamplesPerFrame * 10) {
-                bp.TryQueue(samples);
-            }
-            if (dso.PlaybackState == PlaybackState.Stopped) {
-                dso.Play();
-            }
+
         }
 
         public void Dispose() {
+            SDL_CloseAudioDevice((uint)audioDevice);
             Bus.Mapper.Persist();
-            bp.Clear();
-            dso.Dispose();
         }
 
         public void SaveState(int slot) {
