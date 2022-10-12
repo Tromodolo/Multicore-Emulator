@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.Mapper {
-    public class UxROM : IMapper {
+    public struct UxROM : IMapper {
         Rom.Rom CurrentRom;
 
         const ushort BANK_SIZE = 0x4000;
@@ -29,10 +29,6 @@ namespace NesEmu.Mapper {
         public bool DidMap() {
             return Handled;
         }
-
-        public void SetProgramCounter(int pc) { }
-
-        public void SetScanline(int scanline) { }
 
         public byte CpuRead(ushort address) {
             Handled = false;

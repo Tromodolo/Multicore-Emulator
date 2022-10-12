@@ -25,7 +25,7 @@ namespace NesEmu.PPU {
         Green
     }
 
-    public class MaskRegister {
+    public struct MaskRegister {
         byte Status;
 
         public MaskRegister() {

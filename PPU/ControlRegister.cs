@@ -19,7 +19,7 @@ namespace NesEmu.Rom {
         GenerateNMI             = 1 << 7
     }
 
-    public class ControlRegister {
+    public struct ControlRegister {
         byte Status;
 
         public ControlRegister() {

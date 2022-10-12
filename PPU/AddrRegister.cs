@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.Rom {
-    public class AddrRegister {
+    public struct AddrRegister {
         (byte Hi, byte Lo) Value;
         bool HiPtr;
 

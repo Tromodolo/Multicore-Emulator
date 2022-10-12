@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.Mapper {
-    public class MMC1 : IMapper {
+    public struct MMC1 : IMapper {
         Rom.Rom CurrentRom;
 
         const ushort PRG_SIZE = 0x4000;
@@ -92,8 +92,6 @@ namespace NesEmu.Mapper {
         public void SetProgramCounter(int pc) {
             CurrentPC = pc;
         }
-
-        public void SetScanline(int scanline) { }
 
         public byte CpuRead(ushort address) {
             Handled = false;

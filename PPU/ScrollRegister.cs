@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.PPU {
-    public class ScrollRegister {
+    public struct ScrollRegister {
         (byte X, byte Y) Value;
         bool Latch;
 

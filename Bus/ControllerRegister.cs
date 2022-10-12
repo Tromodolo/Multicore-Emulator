@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.Bus {
-    public class ControllerRegister {
+    public struct ControllerRegister {
         byte CurrentButtons;
         byte ButtonLatch;
     

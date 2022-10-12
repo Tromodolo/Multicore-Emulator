@@ -152,12 +152,14 @@ namespace NesEmu {
             gameName = gameName.Replace(".nez", "");
             var stateFileName = $"{gameName}.{slot}.state";
 
-            var fileStream = new FileStream(stateFileName, FileMode.Open);
-            var binaryReader = new BinaryReader(fileStream);
-            CPU.Load(binaryReader);
-            PPU.Load(binaryReader);
-            Bus.Load(binaryReader);
-            fileStream.Close();
+            if (File.Exists(stateFileName)) {
+                var fileStream = new FileStream(stateFileName, FileMode.Open);
+                var binaryReader = new BinaryReader(fileStream);
+                CPU.Load(binaryReader);
+                PPU.Load(binaryReader);
+                Bus.Load(binaryReader);
+                fileStream.Close();
+            }
         }
 
         // Taken from BizHawk, their license should be in my license file - Tromo

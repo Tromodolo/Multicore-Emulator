@@ -13,7 +13,7 @@ namespace NesEmu.PPU {
         VBlank          = 1 << 7,
     }
 
-    public class StatusRegister {
+    public struct StatusRegister {
         StatusRegisterStatus Status;
 
         public StatusRegister() {

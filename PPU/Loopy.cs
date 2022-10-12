@@ -6,14 +6,13 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.PPU {
-    internal class Loopy {
+    internal struct Loopy {
         public byte CoarseX;
         public byte CoarseY;
         //public byte Nametable;
         public byte NametableX;
         public byte NametableY;
         public byte FineY;
-        public ushort Address;
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Increment(byte value) {

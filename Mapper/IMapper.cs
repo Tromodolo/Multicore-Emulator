@@ -9,11 +9,15 @@ using System.Threading.Tasks;
 namespace NesEmu.Mapper {
     public interface IMapper {
         public ScreenMirroring GetMirroring();
+        public bool GetIRQ() {
+            return false;
+        }
 
-        public void SetProgramCounter(int pc);
-        public void SetScanline(int scanline);
+        public void SetProgramCounter(int pc) {}
+        public void DecrementScanline() { }
 
         public bool DidMap();
+        public int MappedAddress() { return 0; }
         public void RegisterRom(Rom.Rom rom);
 
         public byte CpuRead(ushort address);
@@ -22,8 +26,8 @@ namespace NesEmu.Mapper {
         public byte PPURead(ushort address);
         public void PPUWrite(ushort address, byte value);
 
-        public void Persist();
-        public void Save(BinaryWriter writer);
-        public void Load(BinaryReader reader);
+        public void Persist() { }
+        public void Save(BinaryWriter writer) { }
+        public void Load(BinaryReader reader) { }
     }
 }

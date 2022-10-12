@@ -559,6 +559,9 @@ namespace NesEmu.PPU {
             if (DotsDrawn >= 341) {
                 DotsDrawn = 0;
                 CurrentScanline++;
+                if (Mask.GetBackground() || Mask.GetSprite()) {
+                    Bus.Mapper.DecrementScanline();
+                }
                 if (CurrentScanline >= 261) {
                     CurrentScanline = -1;
                     Status.ResetVBlank();

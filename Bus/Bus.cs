@@ -103,7 +103,6 @@ namespace NesEmu.Bus {
             }
 
             Mapper.SetProgramCounter(CPU.ProgramCounter);
-            Mapper.SetScanline(PPU.CurrentScanline);
 
             if (CycleCount % 3 == 0) {
                 if (DmaActive && APU.dmc_dma_countdown != 1 && !DMCRealign) {
@@ -163,9 +162,7 @@ namespace NesEmu.Bus {
 
                 APU.RunOneFirst();
 
-                // TODO: Add mapper IRQ signal
-                // APUIRQQueued || Mapper.GetIRQSignal()
-                CPU.IRQPending = APUIRQQueued;
+                CPU.IRQPending = APUIRQQueued || Mapper.GetIRQ();
 
                 if (cpuCyclesLeft <= 0) {
                     cpuCyclesLeft = CPU.ExecuteInstruction();

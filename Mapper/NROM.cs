@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.Mapper {
-    public class NROM : IMapper {
+    public struct NROM : IMapper {
         Rom.Rom CurrentRom;
 
         byte[] PrgRom;
@@ -24,10 +24,6 @@ namespace NesEmu.Mapper {
         public bool DidMap() {
             return Handled;
         }
-
-        public void SetProgramCounter(int pc) { }
-
-        public void SetScanline(int scanline) { }
 
         public byte CpuRead(ushort address) {
             Handled = false;
