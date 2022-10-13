@@ -164,6 +164,7 @@ namespace NesEmu.CPU {
         public void IRQ() {
             NumCyclesExecuted += 2;
             IRQPending = false;
+            Bus.APUIRQQueued = false;
             Interrupt(InterruptType.IRQ);
         }
 
