@@ -28,6 +28,10 @@ namespace NesEmu {
         static bool isSaveStateHappening;
 
         static void Main(string[] args){
+#if DEBUG
+            DebugEntrypoint();
+#endif
+
             Console.Clear();
 
             Console.WriteLine("Select which rom to run from current folder:");
@@ -399,6 +403,164 @@ namespace NesEmu {
             }
 
             core.Bus.Controller1.Update(currentKeys);
+        }
+
+        private static void DebugEntrypoint() {
+            var ms = new MemoryStream();
+            var writer = new BinaryWriter(ms);
+
+            writer.Write((byte)0x4e);       // INES Tag
+            writer.Write((byte)0x45);
+            writer.Write((byte)0x53);
+            writer.Write((byte)0x1a);
+
+            writer.Write((byte)0x10);       // Prg Rom LSB
+            writer.Write((byte)0);          // Chr Rom LSB
+
+            writer.Write((byte)0b01000001); // Control Byte 1
+            writer.Write((byte)0b00001100); // Control Byte 2
+
+            writer.Write((byte)0);          // Submapper
+            writer.Write((byte)0);          // xxxxyyyy  X = Chr Rom MSB Y = Prg Rom MSB
+            writer.Write((byte)0);          // Volatile shifts RAM
+            writer.Write((byte)0);          // Volatile shifts Chr RAM
+
+            writer.Write((byte)0);          // Region Flag NTSC
+
+            writer.Write((byte)0);          // Padding
+            writer.Write((byte)0);          // Padding
+            writer.Write((byte)0);          // Padding
+
+            // This is where PRG ROM starts
+            var size = 0x10 * 0x4000;
+            for (int i = 0; i < size; i++) {
+                writer.Write((byte)i); 
+            }
+
+            var debugRom = new Rom.Rom(ms.ToArray(), "Test.nes");
+            const ushort cpuSize = 0x2000;
+            byte bank1 = 0;
+            byte bank2 = 1;
+            byte lastBank = (byte)((debugRom.PrgRom.Length - cpuSize) / cpuSize);
+
+            var testBanks = (bool mode) => {
+                if (mode) {
+                    debugRom.Mapper.CpuRead(0x8000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == (lastBank - 1) * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+
+                    debugRom.Mapper.CpuRead(0xA000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank2 * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+
+                    debugRom.Mapper.CpuRead(0xC000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank1 * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+
+                    debugRom.Mapper.CpuRead(0xE000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == lastBank * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+                } else {
+                    debugRom.Mapper.CpuRead(0x8000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank1 * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+
+                    debugRom.Mapper.CpuRead(0xA000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank2 * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+
+                    debugRom.Mapper.CpuRead(0xC000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == (lastBank - 1) * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+
+                    debugRom.Mapper.CpuRead(0xE000);
+                    Debug.Assert(debugRom.Mapper.MappedAddress() == lastBank * cpuSize);
+                    Debug.Assert(debugRom.Mapper.DidMap());
+                }
+            };
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
+            debugRom.Mapper.CpuWrite(0x8001, bank1);
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
+            debugRom.Mapper.CpuWrite(0x8001, bank2);
+
+            testBanks(false);
+
+            bank1 = 14;
+            bank2 = 12;
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
+            debugRom.Mapper.CpuWrite(0x8001, bank1);
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
+            debugRom.Mapper.CpuWrite(0x8001, bank2);
+
+            testBanks(false);
+
+            bank1 = 7;
+            bank2 = 24;
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
+            debugRom.Mapper.CpuWrite(0x8001, bank1);
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
+            debugRom.Mapper.CpuWrite(0x8001, bank2);
+
+            testBanks(false);
+
+            bank1 = 5;
+            bank2 = 6;
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
+            debugRom.Mapper.CpuWrite(0x8001, bank1);
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
+            debugRom.Mapper.CpuWrite(0x8001, bank2);
+
+            testBanks(true);
+
+            bank1 = 9;
+            bank2 = 8;
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
+            debugRom.Mapper.CpuWrite(0x8001, bank1);
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
+            debugRom.Mapper.CpuWrite(0x8001, bank2);
+
+            testBanks(true);
+
+            bank1 = 1;
+            bank2 = 13;
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
+            debugRom.Mapper.CpuWrite(0x8001, bank1);
+
+            debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
+            debugRom.Mapper.CpuWrite(0x8001, bank2);
+
+            testBanks(true);
+
+            // If we made it this far, bank switching is assumed to be correct
+
+            debugRom.Mapper.CpuWrite(0xE001, 0);
+            debugRom.Mapper.CpuWrite(0xC000, 10);
+            debugRom.Mapper.CpuWrite(0xC001, 0);
+
+            debugRom.Mapper.DecrementScanline();
+
+            for (var i = 0; i < 10; i++) {
+                debugRom.Mapper.DecrementScanline();
+            }
+
+            Debug.Assert(debugRom.Mapper.GetIRQ());
+            debugRom.Mapper.CpuWrite(0xE000, 0);
+            Debug.Assert(!debugRom.Mapper.GetIRQ());
+
+            debugRom.Mapper.DecrementScanline();
+
+            return;
         }
     }
 }
