@@ -517,19 +517,25 @@ namespace NesEmu.PPU {
             byte renderPixel = 0;
             byte renderPalette = 0;
 
+            bool isBg = false;
+
             if (bgPixel == 0 && fgPixel == 0) {
                 // Just continue;
             } else if (bgPixel == 0 && fgPixel > 0) {
+                isBg = false;
                 renderPixel = fgPixel;
                 renderPalette = fgPalette;
             } else if (bgPixel > 0 && fgPixel == 0) {
+                isBg = true;
                 renderPixel = bgPixel;
                 renderPalette = bgPalette;
             } else if (bgPixel > 0 && fgPixel > 0) {
                 if (spritePriority) {
+                    isBg = true;
                     renderPixel = fgPixel;
                     renderPalette = fgPalette;
                 } else {
+                    isBg = false;
                     renderPixel = bgPixel;
                     renderPalette = bgPalette;
                 }
@@ -552,16 +558,31 @@ namespace NesEmu.PPU {
                 }
             }
 
-            var color = Palette.SystemPalette[PaletteTable[(renderPalette << 2) + renderPixel] & 0x3f];
+            (byte, byte, byte) color;
+            if (isBg) {
+                if (!Mask.GetBackgroundLeftColumn() && DotsDrawn <= 8) {
+                    color = Palette.SystemPalette[PaletteTable[0] & 0x3f];
+                } else {
+                    color = Palette.SystemPalette[PaletteTable[(renderPalette << 2) + renderPixel] & 0x3f];
+                }
+            } else {
+                if (!Mask.GetSpriteLeftColumn() && DotsDrawn <= 8) {
+                    color = Palette.SystemPalette[PaletteTable[0] & 0x3f];
+                } else {
+                    color = Palette.SystemPalette[PaletteTable[(renderPalette << 2) + renderPixel] & 0x3f];
+                }
+            }
             SetPixel(DotsDrawn - 1, CurrentScanline, color);
 
             DotsDrawn++;
-            if (DotsDrawn >= 341) {
-                DotsDrawn = 0;
-                CurrentScanline++;
+            if (CurrentScanline < 240 && DotsDrawn == 260) {
                 if (Mask.GetBackground() || Mask.GetSprite()) {
                     Bus.Mapper.DecrementScanline();
                 }
+            }
+            if (DotsDrawn >= 341) {
+                DotsDrawn = 0;
+                CurrentScanline++;
                 if (CurrentScanline >= 261) {
                     CurrentScanline = -1;
                     Status.ResetVBlank();
