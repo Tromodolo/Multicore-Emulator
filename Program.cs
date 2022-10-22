@@ -29,7 +29,7 @@ namespace NesEmu {
 
         static void Main(string[] args){
 #if DEBUG
-            DebugEntrypoint();
+            //DebugEntrypoint();
 #endif
 
             Console.Clear();
