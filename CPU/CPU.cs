@@ -37,6 +37,10 @@ namespace NesEmu.CPU {
 
         public byte NumCyclesExecuted;
 
+        public int BreakpointStart = -1;
+        public int BreakpointEnd = -1;
+        public bool ShouldLog = false;
+
         /// <summary>
         /// If RDY flag is set low, it means the CPU should just stop execution, but still allow interrupts
         /// <br>NMI should for example switch to the interrupt vector, but not do anything more</br>
@@ -71,10 +75,22 @@ namespace NesEmu.CPU {
         public byte ExecuteInstruction() {
             FreezeExecution = false;
 
+            if (ProgramCounter == BreakpointStart) {
+                ShouldLog = true;
+            }
+
+            if (ProgramCounter == BreakpointEnd) {
+                ShouldLog = false;
+            }
+
             var op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
             NumCyclesExecuted = 0;
             HandleInstruction(op);
             return NumCyclesExecuted;
+        }
+
+        public bool CanInterrupt() {
+            return (Status & Flags.InterruptDisable) == 0;
         }
 
         void SetStatusFlag(Flags flag) {

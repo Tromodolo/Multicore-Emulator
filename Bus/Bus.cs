@@ -67,7 +67,7 @@ namespace NesEmu.Bus {
         public bool DmaDummyRead;
         public bool DmaActive;
 
-        public bool APUIRQQueued;
+        public bool APUIRQ;
         public bool DMCDmaActive;
         public bool DMCRealign;
 
@@ -162,10 +162,30 @@ namespace NesEmu.Bus {
 
                 APU.RunOneFirst();
 
-                CPU.IRQPending = APUIRQQueued || Mapper.GetIRQ();
+
+                if (CPU.CanInterrupt()) {
+                    // This timing is super broken and I need to fix it
+                    // Implement mapper 71 maybe?
+                    //if (APUIRQ) {
+                    //    CPU.IRQPending = true;
+                    //}
+                    if (Mapper.GetIRQ()) {
+                        CPU.IRQPending = true;
+                    }
+                }
 
                 if (cpuCyclesLeft <= 0) {
+                    //Console.WriteLine("ClockCpu");
+                    if (CPU.ShouldLog) {
+                        Console.WriteLine($"TRACE: {Trace.Log(CPU)}");
+                    }
+
                     cpuCyclesLeft = CPU.ExecuteInstruction();
+
+                    if (!CPU.IRQPending && APUIRQ) {
+                        APUIRQ = false;
+                        Mapper.SetIRQ(false);
+                    }
                 }
                 cpuCyclesLeft--;
 

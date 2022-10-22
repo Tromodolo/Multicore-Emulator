@@ -125,11 +125,7 @@ namespace NesEmu.Rom {
                     prgRomSize = prgSize;
                 }
 
-                if (chrSize <= 16) {
-                    chrRomSize = chrSize * 0x2000;
-                } else {
-                    chrRomSize = chrSize;
-                }
+                chrRomSize = chrSize * 0x2000;
 
                 PrgRam = new byte[0x8000];
             }
@@ -167,6 +163,7 @@ namespace NesEmu.Rom {
                 0 => new NROM(),
                 1 => new MMC1(),
                 2 => new UxROM(),
+                4 => new MMC3(),
                 _ => throw new NotImplementedException($"Mapper {mapperId} not implemented"),
             };
         }

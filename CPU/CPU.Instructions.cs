@@ -149,7 +149,7 @@ namespace NesEmu.CPU {
 #if NESTEST
             stream.Write(Encoding.UTF8.GetBytes("==BRK==\r\n"));
 #endif
-            NumCyclesExecuted += 1;
+            NumCyclesExecuted += 7;
             Interrupt(InterruptType.BRK);
         }
 
@@ -157,14 +157,13 @@ namespace NesEmu.CPU {
 #if NESTEST
             stream.Write(Encoding.UTF8.GetBytes("==NMI==\r\n"));
 #endif
-            NumCyclesExecuted += 2;
+            NumCyclesExecuted += 7;
             Interrupt(InterruptType.NMI);
         }
 
         public void IRQ() {
-            NumCyclesExecuted += 2;
+            NumCyclesExecuted += 7;
             IRQPending = false;
-            Bus.APUIRQQueued = false;
             Interrupt(InterruptType.IRQ);
         }
 
@@ -210,24 +209,26 @@ namespace NesEmu.CPU {
             // IRQ and NMI should still happen during cpu being frozen, but they just won't be able to continue
             if (IRQPending && (Status & Flags.InterruptDisable) == 0) {
                 IRQ();
-                op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
-                FreezeExecution = !Ready;
-                if (FreezeExecution) {
-                    return;
-                }
-                ProgramCounter++;
-                mode = op.Mode;
-                PCCopy = ProgramCounter;
+                return;
+                //op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
+                //FreezeExecution = !Ready;
+                //if (FreezeExecution) {
+                //    return;
+                //}
+                //ProgramCounter++;
+                //mode = op.Mode;
+                //PCCopy = ProgramCounter;
             } else if (Bus.GetNmiStatus()) {
                 NMI();
-                op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
-                FreezeExecution = !Ready;
-                if (FreezeExecution) {
-                    return;
-                }
-                ProgramCounter++;
-                mode = op.Mode;
-                PCCopy = ProgramCounter;
+                return;
+                //op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
+                //FreezeExecution = !Ready;
+                //if (FreezeExecution) {
+                //    return;
+                //}
+                //ProgramCounter++;
+                //mode = op.Mode;
+                //PCCopy = ProgramCounter;
             } else {
                 FreezeExecution = !Ready;
                 if (FreezeExecution) {
@@ -248,7 +249,7 @@ namespace NesEmu.CPU {
                     break;
                 case "BRK":
                     BRK();
-                    break;
+                    return;
                 case "ADC":
                     adc(mode);
                     break;

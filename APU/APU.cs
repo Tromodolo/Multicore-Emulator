@@ -1223,16 +1223,17 @@ namespace BizHawk.NES {
 				}
 			}
 
-
-
 			SyncIRQ();
-			nes.Bus.APUIRQQueued = irq_pending;
+			if (irq_pending) {
+				nes.Bus.APUIRQ = true;
+            }
 
 			// since the units run concurrently, the APU frame sequencer is ran last because
 			// it can change the output values of the pulse/triangle channels
 			// we want the changes to affect it on the *next* cycle.
-			if (sequencer_irq_flag == false)
+			if (sequencer_irq_flag == false) {
 				sequencer_irq = false;
+            }
 
 			if (DebugCallbackDivider != 0) {
 				if (DebugCallbackTimer == 0) {
