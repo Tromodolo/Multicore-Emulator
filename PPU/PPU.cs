@@ -56,6 +56,7 @@ namespace NesEmu.PPU {
         byte[] SpriteShifterPatternHi = new byte[8];
 
         struct SpriteEntry {
+            public SpriteEntry() { }
             public byte YPosition = 0;
             public byte XPosition = 0;
             public byte TileId = 0;
