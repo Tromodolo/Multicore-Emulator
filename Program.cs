@@ -32,52 +32,8 @@ namespace NesEmu {
             //DebugEntrypoint();
 #endif
 
-            Console.Clear();
-
-            Console.WriteLine("Select which rom to run from current folder:");
-            var dirFiles = Directory.GetFiles(Directory.GetCurrentDirectory());
-            List<string> roms = new List<string>();
-            foreach (var file in dirFiles) {
-                if (file.EndsWith(".nes") || file.EndsWith(".nez")) {
-                    roms.Add(file);
-                }
-            }
-
-            int selected = -1;
-            int marked = 0;
-            int initialRow = Console.CursorTop;
-            while (selected < 0) {
-                Console.CursorTop = initialRow;
-                var index = 0;
-                foreach (var romfile in roms) {
-                    if (index == marked) {
-                        Console.BackgroundColor = ConsoleColor.DarkGreen;
-                        Console.ForegroundColor = ConsoleColor.Black;
-                        Console.Write($"> {romfile}\n");
-                        Console.BackgroundColor = ConsoleColor.Black;
-                        Console.ForegroundColor = ConsoleColor.White;
-                    } else {
-                        Console.Write($"  {romfile}\n");
-                    }
-                    index++;
-                }
-
-                var nextKey = Console.ReadKey();
-                if (nextKey.Key == ConsoleKey.DownArrow) {
-                    if (marked == roms.Count - 1) {
-                        continue;
-                    }
-                    marked++;
-                } else if (nextKey.Key == ConsoleKey.UpArrow) {
-                    if (marked == 0) {
-                        continue;
-                    }
-                    marked--;
-                } else if (nextKey.Key == ConsoleKey.Enter) {
-                    selected = marked;
-                }
-            }
-            fileName = roms[selected];
+            var picker = new ConsoleFilePicker(new []{ ".nes", ".nez" }, Directory.GetCurrentDirectory());
+            fileName = picker.SelectFile();
 
             byte[] romByteArr;
             try {

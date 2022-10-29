@@ -15,7 +15,8 @@ namespace NesEmu {
 
         int SamplesPerFrame = (44100 / 60) + 1;
         SDL_AudioSpec sdlSpec;
-        int audioDevice;
+        int audioDevice = -1;
+        string usedDevice = "";
 
         public NesCore(Rom.Rom rom) {
             PPU = new(rom.ChrRom);
@@ -27,51 +28,60 @@ namespace NesEmu {
             CPU.RegisterBus(Bus);
             PPU.RegisterBus(Bus);
 
-            Console.CursorTop++;
-
-            List<string> devices = new List<string>();
-            int count = SDL_GetNumAudioDevices(0);
-            for (int i = 0; i < count; ++i) {
-                devices.Add(SDL_GetAudioDeviceName(i, 0));
+            usedDevice = "";
+            if (File.Exists("audio_device.conf")) {
+                usedDevice = File.ReadAllText("audio_device.conf");
             }
 
-            Console.WriteLine($"Select your audio device: ");
+            if (string.IsNullOrEmpty(usedDevice)) {
+                //Console.CursorTop++;
+                Console.Clear();
 
-            int selected = -1;
-            int marked = 0;
-            int initialRow = Console.CursorTop;
-            while (selected < 0) {
-                Console.CursorTop = initialRow;
-                var index = 0;
-                foreach (var dev in devices) {
-                    if (index == marked) {
-                        Console.BackgroundColor = ConsoleColor.DarkGreen;
-                        Console.ForegroundColor = ConsoleColor.Black;
-                        Console.Write($"> {dev}\n");
-                        Console.BackgroundColor = ConsoleColor.Black;
-                        Console.ForegroundColor = ConsoleColor.White;
-                    } else {
-                        Console.Write($"  {dev}\n");
-                    }
-                    index++;
+                List<string> devices = new List<string>();
+                int count = SDL_GetNumAudioDevices(0);
+                for (int i = 0; i < count; ++i) {
+                    devices.Add(SDL_GetAudioDeviceName(i, 0));
                 }
 
-                var nextKey = Console.ReadKey();
-                if (nextKey.Key == ConsoleKey.DownArrow) {
-                    if (marked == devices.Count - 1) {
-                        continue;
+                Console.WriteLine($"Select your audio device: ");
+
+                int selected = -1;
+                int marked = 0;
+                int initialRow = Console.CursorTop;
+                while (selected < 0) {
+                    Console.CursorTop = initialRow;
+                    var index = 0;
+                    foreach (var dev in devices) {
+                        if (index == marked) {
+                            Console.BackgroundColor = ConsoleColor.DarkGreen;
+                            Console.ForegroundColor = ConsoleColor.Black;
+                            Console.Write($"> {dev}\n");
+                            Console.BackgroundColor = ConsoleColor.Black;
+                            Console.ForegroundColor = ConsoleColor.White;
+                        } else {
+                            Console.Write($"  {dev}\n");
+                        }
+                        index++;
                     }
-                    marked++;
-                } else if (nextKey.Key == ConsoleKey.UpArrow) {
-                    if (marked == 0) {
-                        continue;
+
+                    var nextKey = Console.ReadKey();
+                    if (nextKey.Key == ConsoleKey.DownArrow) {
+                        if (marked == devices.Count - 1) {
+                            continue;
+                        }
+                        marked++;
+                    } else if (nextKey.Key == ConsoleKey.UpArrow) {
+                        if (marked == 0) {
+                            continue;
+                        }
+                        marked--;
+                    } else if (nextKey.Key == ConsoleKey.Enter) {
+                        selected = marked;
                     }
-                    marked--;
-                } else if (nextKey.Key == ConsoleKey.Enter) {
-                    selected = marked;
                 }
+                usedDevice = devices[selected];
+                File.WriteAllText("audio_device.conf", usedDevice);
             }
-            var usedDevice = devices[selected];
 
             sdlSpec.channels = 1;
             sdlSpec.freq = 44100;
