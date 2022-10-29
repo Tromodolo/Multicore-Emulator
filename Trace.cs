@@ -30,7 +30,7 @@ namespace NesEmu {
                     storedValue = 0;
                     break;
                 default:
-                    memAddr = cpu.GetAbsoluteAdddress(op.Mode, (ushort)(cpu.ProgramCounter + 1)).programCounter;
+                    memAddr = cpu.GetAbsoluteAddress(op.Mode, (ushort)(cpu.ProgramCounter + 1)).programCounter;
                     storedValue = cpu.MemRead(memAddr);
                     break;
             }

@@ -18,53 +18,53 @@ namespace NesEmu.CPU {
             return (addr & 0xFF00) != (addr2 & 0xFF00);
         }
 
-        public (ushort programCounter, bool crossedBoundary) GetAbsoluteAdddress(AddressingMode mode, ushort address) {
+        public (ushort programCounter, bool crossedBoundary) GetAbsoluteAddress(AddressingMode mode, ushort address) {
             switch (mode) {
                 case AddressingMode.NoneAddressing: return (0, false);
                 case AddressingMode.Accumulator: return (0, false);
                 case AddressingMode.Immediate: return (address, false);
                 case AddressingMode.Relative: {
-                        ushort jump = MemRead(address);
-                        address++;
-                        ushort jumpAddr = (ushort)(address + jump);
-                        return (jumpAddr, false);
-                    }
+                    ushort jump = MemRead(address);
+                    address++;
+                    ushort jumpAddr = (ushort)(address + jump);
+                    return (jumpAddr, false);
+                }
                 case AddressingMode.ZeroPage: return (MemRead(address), false);
                 case AddressingMode.ZeroPageX: {
-                        byte pos = MemRead(address);
-                        pos += RegisterX;
-                        return (pos, false);
-                    }
+                    byte pos = MemRead(address);
+                    pos += RegisterX;
+                    return (pos, false);
+                }
                 case AddressingMode.ZeroPageY: {
-                        byte pos = MemRead(address);
-                        pos += RegisterY;
-                        return (pos, false);
-                    }
+                    byte pos = MemRead(address);
+                    pos += RegisterY;
+                    return (pos, false);
+                }
                 case AddressingMode.Absolute: return (MemReadShort(address), false);
                 case AddressingMode.AbsoluteX: {
-                        ushort baseAddr = MemReadShort(address);
-                        ushort addr = (ushort)(baseAddr + RegisterX);
-                        return (addr, IsPageCross(baseAddr, addr));
-                    }
+                    ushort baseAddr = MemReadShort(address);
+                    ushort addr = (ushort)(baseAddr + RegisterX);
+                    return (addr, IsPageCross(baseAddr, addr));
+                }
                 case AddressingMode.AbsoluteY: {
-                        ushort baseAddr = MemReadShort(address);
-                        ushort addr = (ushort)(baseAddr + RegisterY);
-                        return (addr, IsPageCross(baseAddr, addr));
-                    }
+                    ushort baseAddr = MemReadShort(address);
+                    ushort addr = (ushort)(baseAddr + RegisterY);
+                    return (addr, IsPageCross(baseAddr, addr));
+                }
                 case AddressingMode.Indirect: {
-                        ushort addr = MemReadShort(address);
-                        // 6502 bug mode with with page boundary:
-                        //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
-                        // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
-                        // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
-                        if ((addr & 0x00ff) == 0x00ff) {
-                            byte lo = MemRead(addr);
-                            byte hi = MemRead((ushort)(addr & 0xff00));
-                            return ((ushort)((hi << 8) | lo), false);
-                        } else {
-                            return (MemReadShort(addr), false);
-                        }
+                    ushort addr = MemReadShort(address);
+                    // 6502 bug mode with with page boundary:
+                    //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
+                    // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
+                    // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
+                    if ((addr & 0x00ff) == 0x00ff) {
+                        byte lo = MemRead(addr);
+                        byte hi = MemRead((ushort)(addr & 0xff00));
+                        return ((ushort)((hi << 8) | lo), false);
+                    } else {
+                        return (MemReadShort(addr), false);
                     }
+                }
                 case AddressingMode.IndirectX: {
                         byte baseAddr = MemRead(address);
                         byte pointer = (byte)(baseAddr + RegisterX);
@@ -94,7 +94,7 @@ namespace NesEmu.CPU {
         public (ushort programCounter, bool crossedBoundary) GetOperandAddress(AddressingMode mode) {
             return mode switch {
                 AddressingMode.Immediate => (ProgramCounter, false),
-                _ => GetAbsoluteAdddress(mode, ProgramCounter),
+                _ => GetAbsoluteAddress(mode, ProgramCounter),
             };
         }
 
