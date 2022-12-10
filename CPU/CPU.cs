@@ -30,16 +30,16 @@ namespace NesEmu.CPU {
         public byte RegisterY;
         public ushort ProgramCounter;
         public byte StackPointer;
-        public bool Running;
         public Flags Status;
-        public UInt64 TotalCycles;
         public Bus.Bus Bus;
+        
+        bool Running;
+        ulong TotalCycles;
+        byte NumCyclesExecuted;
 
-        public byte NumCyclesExecuted;
-
-        public int BreakpointStart = -1;
-        public int BreakpointEnd = -1;
         public bool ShouldLog = false;
+        int BreakpointStart = -1;
+        int BreakpointEnd = -1;
 
         /// <summary>
         /// If RDY flag is set low, it means the CPU should just stop execution, but still allow interrupts
@@ -71,7 +71,6 @@ namespace NesEmu.CPU {
             Ready = true;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte ExecuteInstruction() {
             FreezeExecution = false;
 

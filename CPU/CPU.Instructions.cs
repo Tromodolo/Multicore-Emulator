@@ -4,6 +4,8 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+// ReSharper does not like the asm functions
+// ReSharper disable InconsistentNaming
 
 namespace NesEmu.CPU {
     public partial class NesCpu {
@@ -14,7 +16,7 @@ namespace NesEmu.CPU {
             RESET
         }
 
-        bool IsPageCross(ushort addr, ushort addr2) {
+        static bool IsPageCross(ushort addr, ushort addr2) {
             return (addr & 0xFF00) != (addr2 & 0xFF00);
         }
 
@@ -83,7 +85,7 @@ namespace NesEmu.CPU {
                     ushort derefBase = ((ushort)((ushort)(hi << 8) | lo));
                     ushort deref = (ushort)(derefBase + RegisterY);
 
-                    var isCross = IsPageCross(deref, derefBase);
+                    bool isCross = IsPageCross(deref, derefBase);
                     return (deref, isCross);
                 }
                 default:
@@ -91,7 +93,7 @@ namespace NesEmu.CPU {
             }
         }
 
-        public (ushort programCounter, bool crossedBoundary) GetOperandAddress(AddressingMode mode) {
+        (ushort programCounter, bool crossedBoundary) GetOperandAddress(AddressingMode mode) {
             return mode switch {
                 AddressingMode.Immediate => (ProgramCounter, false),
                 _ => GetAbsoluteAddress(mode, ProgramCounter),
@@ -121,7 +123,7 @@ namespace NesEmu.CPU {
         }
 
         void AddToAcc(byte value) {
-            ushort sum = (ushort)(Accumulator + value);
+            var sum = (ushort)(Accumulator + value);
             if (Status.HasFlag(Flags.Carry)) {
                 sum++;
             }
@@ -132,7 +134,7 @@ namespace NesEmu.CPU {
                 ClearStatusFlag(Flags.Carry);
             }
 
-            byte result = (byte)sum;
+            var result = (byte)sum;
             // If value has wrapped, set overflow flag
             if (((value ^ result) & (result ^ Accumulator) & 0x80) != 0) {
                 SetStatusFlag(Flags.Overflow);
@@ -161,13 +163,13 @@ namespace NesEmu.CPU {
             Interrupt(InterruptType.NMI);
         }
 
-        public void IRQ() {
+        void IRQ() {
             NumCyclesExecuted += 7;
             IRQPending = false;
             Interrupt(InterruptType.IRQ);
         }
 
-        public void Interrupt(InterruptType interrupt) {
+        void Interrupt(InterruptType interrupt) {
             if (interrupt != InterruptType.RESET) {
                 StackPushShort(ProgramCounter);
 
@@ -197,12 +199,7 @@ namespace NesEmu.CPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void HandleInstruction(OpCode op) {
-            if (op == null) {
-                return;
-            }
-
             AddressingMode mode;
             ushort PCCopy;
 
@@ -224,245 +221,246 @@ namespace NesEmu.CPU {
             }
 
             switch (op.Name) {
-                case "NOP":
-                case "*NOP":
-                    var (_, pageCross) = GetOperandAddress(mode);
+                case Op.NOP:
+                case Op._NOP:
+                    (_, bool pageCross) = GetOperandAddress(mode);
                     if (pageCross) {
                         NumCyclesExecuted += 1;
                     }
                     break;
-                case "BRK":
+                case Op.BRK:
                     BRK();
                     return;
-                case "ADC":
-                    adc(mode);
+                case Op.ADC:
+                    ADC(mode);
                     break;
-                case "AND":
-                    and(mode);
+                case Op.AND:
+                    AND(mode);
                     break;
-                case "ASL":
-                    asl(mode);
+                case Op.ASL:
+                    ASL(mode);
                     break;
-                case "ASL_ACC":
-                    asl_acc();
+                case Op.ASL_ACC:
+                    ASL_ACC();
                     break;
-                case "BEQ":
-                    branch(Status.HasFlag(Flags.Zero));
+                case Op.BEQ:
+                    Branch(Status.HasFlag(Flags.Zero));
                     break;
-                case "BCS":
-                    branch(Status.HasFlag(Flags.Carry));
+                case Op.BCS:
+                    Branch(Status.HasFlag(Flags.Carry));
                     break;
-                case "BVS":
-                    branch(Status.HasFlag(Flags.Overflow));
+                case Op.BVS:
+                    Branch(Status.HasFlag(Flags.Overflow));
                     break;
-                case "BMI":
-                    branch(Status.HasFlag(Flags.Negative));
+                case Op.BMI:
+                    Branch(Status.HasFlag(Flags.Negative));
                     break;
-                case "BNE":
-                    branch(!Status.HasFlag(Flags.Zero));
+                case Op.BNE:
+                    Branch(!Status.HasFlag(Flags.Zero));
                     break;
-                case "BCC":
-                    branch(!Status.HasFlag(Flags.Carry));
+                case Op.BCC:
+                    Branch(!Status.HasFlag(Flags.Carry));
                     break;
-                case "BVC":
-                    branch(!Status.HasFlag(Flags.Overflow));
+                case Op.BVC:
+                    Branch(!Status.HasFlag(Flags.Overflow));
                     break;
-                case "BPL":
-                    branch(!Status.HasFlag(Flags.Negative));
+                case Op.BPL:
+                    Branch(!Status.HasFlag(Flags.Negative));
                     break;
-                case "BIT":
-                    bit(mode);
+                case Op.BIT:
+                    BIT(mode);
                     break;
-                case "CMP":
-                    compare(mode, Accumulator, true);
+                case Op.CMP:
+                    Compare(mode, Accumulator, true);
                     break;
-                case "CPX":
-                    compare(mode, RegisterX, false);
+                case Op.CPX:
+                    Compare(mode, RegisterX, false);
                     break;
-                case "CPY":
-                    compare(mode, RegisterY, false);
+                case Op.CPY:
+                    Compare(mode, RegisterY, false);
                     break;
-                case "DEC":
-                    dec(mode);
+                case Op.DEC:
+                    DEC(mode);
                     break;
-                case "DEX":
-                    dex();
+                case Op.DEX:
+                    DEX();
                     break;
-                case "DEY":
-                    dey();
+                case Op.DEY:
+                    DEY();
                     break;
-                case "EOR":
-                    eor(mode);
+                case Op.EOR:
+                    EOR(mode);
                     break;
-                case "INC":
-                    inc(mode);
+                case Op.INC:
+                    INC(mode);
                     break;
-                case "INX":
-                    inx();
+                case Op.INX:
+                    INX();
                     break;
-                case "INY":
-                    iny();
+                case Op.INY:
+                    INY();
                     break;
-                case "JMP":
-                    jmp(mode);
+                case Op.JMP:
+                    JMP(mode);
                     break;
-                case "JSR":
-                    jsr();
+                case Op.JSR:
+                    JSR();
                     break;
-                case "LDA":
-                    lda(mode);
+                case Op.LDA:
+                    LDA(mode);
                     break;
-                case "LDX":
-                    ldx(mode);
+                case Op.LDX:
+                    LDX(mode);
                     break;
-                case "LDY":
-                    ldy(mode);
+                case Op.LDY:
+                    LDY(mode);
                     break;
-                case "LSR":
-                    lsr(mode);
+                case Op.LSR:
+                    LSR(mode);
                     break;
-                case "LSR_ACC":
-                    lsr_acc();
+                case Op.LSR_ACC:
+                    LSR_ACC();
                     break;
-                case "ORA":
-                    ora(mode);
+                case Op.ORA:
+                    ORA(mode);
                     break;
-                case "PHA":
-                    pha();
+                case Op.PHA:
+                    PHA();
                     break;
-                case "PLP":
-                    plp();
+                case Op.PLP:
+                    PLP();
                     break;
-                case "PHP":
-                    php();
+                case Op.PHP:
+                    PHP();
                     break;
-                case "PLA":
-                    pla();
+                case Op.PLA:
+                    PLA();
                     break;
-                case "ROL":
-                    rol(mode);
+                case Op.ROL:
+                    ROL(mode);
                     break;
-                case "ROL_ACC":
-                    rol_acc();
+                case Op.ROL_ACC:
+                    ROL_ACC();
                     break;
-                case "ROR":
-                    ror(mode);
+                case Op.ROR:
+                    ROR(mode);
                     break;
-                case "ROR_ACC":
-                    ror_acc();
+                case Op.ROR_ACC:
+                    ROR_ACC();
                     break;
-                case "RTI":
-                    rti();
+                case Op.RTI:
+                    RTI();
                     break;
-                case "RTS":
-                    rts();
+                case Op.RTS:
+                    RTS();
                     break;
-                case "SBC":
-                case "*SBC":
-                    sbc(mode);
+                case Op.SBC:
+                case Op._SBC:
+                    SBC(mode);
                     break;
-                case "STA":
-                    sta(mode);
+                case Op.STA:
+                    STA(mode);
                     break;
-                case "STX":
-                    stx(mode);
+                case Op.STX:
+                    STX(mode);
                     break;
-                case "STY":
-                    sty(mode);
+                case Op.STY:
+                    STY(mode);
                     break;
-                case "TAX":
-                    tax();
+                case Op.TAX:
+                    TAX();
                     break;
-                case "TAY":
-                    tay();
+                case Op.TAY:
+                    TAY();
                     break;
-                case "TSX":
-                    tsx();
+                case Op.TSX:
+                    TSX();
                     break;
-                case "TXA":
-                    txa();
+                case Op.TXA:
+                    TXA();
                     break;
-                case "TXS":
-                    txs();
+                case Op.TXS:
+                    TXS();
                     break;
-                case "TYA":
-                    tya();
+                case Op.TYA:
+                    TYA();
                     break;
-                case "CLD":
+                case Op.CLD:
                     ClearStatusFlag(Flags.DecimalMode);
                     break;
-                case "CLI":
+                case Op.CLI:
                     ClearStatusFlag(Flags.InterruptDisable);
                     break;
-                case "CLV":
+                case Op.CLV:
                     ClearStatusFlag(Flags.Overflow);
                     break;
-                case "CLC":
+                case Op.CLC:
                     ClearStatusFlag(Flags.Carry);
                     break;
-                case "SEC":
+                case Op.SEC:
                     SetStatusFlag(Flags.Carry);
                     break;
-                case "SEI":
+                case Op.SEI:
                     SetStatusFlag(Flags.InterruptDisable);
                     break;
-                case "SED":
+                case Op.SED:
                     SetStatusFlag(Flags.DecimalMode);
                     break;
 
                 //Unofficial
-                case "AAC":
-                    aac(mode);
+                case Op.AAC:
+                    AAC(mode);
                     break;
-                case "*SAX":
-                    aax(mode);
+                case Op._SAX:
+                    AAX(mode);
                     break;
-                case "ARR":
-                    arr(mode);
+                case Op.ARR:
+                    ARR(mode);
                     break;
-                case "ASR":
-                    asr(mode);
+                case Op.ASR:
+                    ASR(mode);
                     break;
-                case "ATX":
-                    atx(mode);
+                case Op.ATX:
+                    ATX(mode);
                     break;
-                case "AXA":
-                    axa(mode);
+                case Op.AXA:
+                    AXA(mode);
                     break;
-                case "AXS":
-                    axs(mode);
+                case Op.AXS:
+                    AXS(mode);
                     break;
-                case "*DCP":
-                    dcp(mode);
+                case Op._DCP:
+                    DCP(mode);
                     break;
-                case "*ISB":
-                    isc(mode);
+                case Op._ISB:
+                    ISC(mode);
                     break;
-                case "LAR":
-                    lar(mode);
+                case Op.LAR:
+                    LAR(mode);
                     break;
-                case "*LAX":
-                    lax(mode);
+                case Op._LAX:
+                    LAX(mode);
                     break;
-                case "*RLA":
-                    rla(mode);
+                case Op._RLA:
+                    RLA(mode);
                     break;
-                case "*RRA":
-                    rra(mode);
+                case Op._RRA:
+                    RRA(mode);
                     break;
-                case "*SLO":
-                    slo(mode);
+                case Op._SLO:
+                    SLO(mode);
                     break;
-                case "*SRE":
-                    sre(mode);
+                case Op._SRE:
+                    SRE(mode);
                     break;
-                case "SXA":
-                    sxa(mode);
+                case Op.SXA:
+                    SXA(mode);
                     break;
-                case "SYA":
-                    sya(mode);
+                case Op.SYA:
+                    SYA(mode);
                     break;
-
+                default:
+                    break;
             }
 
             NumCyclesExecuted += op.NumCycles;
@@ -475,9 +473,9 @@ namespace NesEmu.CPU {
         /*
          * Instructions start here
          */
-        void adc(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void ADC(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             AddToAcc(value);
 
             if (pageCross) {
@@ -485,9 +483,9 @@ namespace NesEmu.CPU {
             }
         }
 
-        void and(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void AND(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             Accumulator &= value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -496,9 +494,9 @@ namespace NesEmu.CPU {
             }
         }
 
-        void asl(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void ASL(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             if (value >> 7 == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -511,7 +509,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(newVal);
         }
 
-        void asl_acc() {
+        void ASL_ACC() {
             if (Accumulator >> 7 == 1) {
                 SetStatusFlag(Flags.Carry);
             } else {
@@ -522,23 +520,24 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void branch(bool condition) {
-            if (condition) {
+        void Branch(bool condition) {
+            if (!condition)
+                return;
+            
+            NumCyclesExecuted += 1;
+
+            var jump = (sbyte)MemRead(ProgramCounter);
+            var jumpAddr = (ushort)(ProgramCounter + jump + 1);
+
+            if ((((ushort)(ProgramCounter + 1)) & 0xff00) != (jumpAddr & 0xff00)) {
                 NumCyclesExecuted += 1;
-
-                sbyte jump = (sbyte)MemRead(ProgramCounter);
-                var jumpAddr = (ushort)(ProgramCounter + jump + 1);
-
-                if ((((ushort)(ProgramCounter + 1)) & 0xff00) != (jumpAddr & 0xff00)) {
-                    NumCyclesExecuted += 1;
-                }
-                ProgramCounter = jumpAddr;
             }
+            ProgramCounter = jumpAddr;
         }
 
-        void bit(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var mask = MemRead(address);
+        void BIT(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte mask = MemRead(address);
 
             if ((mask & Accumulator) == 0) {
                 SetStatusFlag(Flags.Zero);
@@ -559,9 +558,9 @@ namespace NesEmu.CPU {
             }
         }
 
-        void compare(AddressingMode mode, byte value, bool pageCrossAvailable) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var memVal = MemRead(address);
+        void Compare(AddressingMode mode, byte value, bool pageCrossAvailable) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte memVal = MemRead(address);
             if (memVal <= value) {
                 SetStatusFlag(Flags.Carry);
             } else {
@@ -574,27 +573,27 @@ namespace NesEmu.CPU {
             }
         }
 
-        void dec(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void DEC(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             value--;
             MemWrite(address, value);
             UpdateZeroAndNegative(value);
         }
 
-        void dex() {
+        void DEX() {
             RegisterX--;
             UpdateZeroAndNegative(RegisterX);
         }
 
-        void dey() {
+        void DEY() {
             RegisterY--;
             UpdateZeroAndNegative(RegisterY);
         }
 
-        void eor(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void EOR(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             Accumulator ^= value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -603,36 +602,36 @@ namespace NesEmu.CPU {
             }
         }
 
-        byte inc(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        byte INC(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             value++;
             MemWrite(address, value);
             UpdateZeroAndNegative(value);
             return value;
         }
 
-        void inx() {
+        void INX() {
             RegisterX++;
             UpdateZeroAndNegative(RegisterX);
         }
 
-        void iny() {
+        void INY() {
             RegisterY++;
             UpdateZeroAndNegative(RegisterY);
         }
 
-        void jmp(AddressingMode mode) {
+        void JMP(AddressingMode mode) {
             if (mode == AddressingMode.Indirect) {
                 jmp_indirect();
             } else {
-                var address = MemReadShort(ProgramCounter);
+                ushort address = MemReadShort(ProgramCounter);
                 ProgramCounter = address;
             }
         }
 
         void jmp_indirect() {
-            var address = MemReadShort(ProgramCounter);
+            ushort address = MemReadShort(ProgramCounter);
             NumCyclesExecuted += 2;
             // 6502 bug mode with with page boundary:
             //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
@@ -640,8 +639,8 @@ namespace NesEmu.CPU {
             // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
             ushort indirectRef;
             if ((address & 0x00ff) == 0x00ff) {
-                var loAddr = MemRead(address);
-                var hiAddr = MemRead((ushort)(address & 0xff00));
+                byte loAddr = MemRead(address);
+                byte hiAddr = MemRead((ushort)(address & 0xff00));
                 indirectRef = (ushort)((hiAddr << 8) | loAddr);
             } else {
                 indirectRef = MemReadShort(address);
@@ -649,15 +648,15 @@ namespace NesEmu.CPU {
             ProgramCounter = indirectRef;
         }
 
-        void jsr() {
+        void JSR() {
             StackPushShort((ushort)(ProgramCounter + 1));
-            var addr = MemReadShort(ProgramCounter);
+            ushort addr = MemReadShort(ProgramCounter);
             ProgramCounter = addr;
         }
 
-        void lda(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void LDA(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             Accumulator = value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -666,9 +665,9 @@ namespace NesEmu.CPU {
             }
         }
 
-        void ldx(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void LDX(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             RegisterX = value;
             UpdateZeroAndNegative(RegisterX);
 
@@ -677,9 +676,9 @@ namespace NesEmu.CPU {
             }
         }
 
-        void ldy(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void LDY(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             RegisterY = value;
             UpdateZeroAndNegative(RegisterY);
 
@@ -688,9 +687,9 @@ namespace NesEmu.CPU {
             }
         }
 
-        void lsr(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void LSR(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             if ((value & 1) == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -703,7 +702,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(newVal);
         }
 
-        void lsr_acc() {
+        void LSR_ACC() {
             if ((Accumulator & 1) == 1) {
                 SetStatusFlag(Flags.Carry);
             } else {
@@ -714,9 +713,9 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void ora(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void ORA(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             Accumulator |= value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -725,33 +724,33 @@ namespace NesEmu.CPU {
             }
         }
 
-        void pha() {
+        void PHA() {
             StackPush(Accumulator);
         }
 
-        void php() {
+        void PHP() {
             var flags = Status;
             flags |= Flags.Break;
             flags |= Flags.Break2;
             StackPush((byte)flags);
         }
 
-        void pla() {
+        void PLA() {
             Accumulator = StackPop();
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void plp() {
+        void PLP() {
             byte statusBits = StackPop();
             Status = (Flags)statusBits;
             ClearStatusFlag(Flags.Break);
             SetStatusFlag(Flags.Break2);
         }
 
-        void rol(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
-            var oldCarry = Status.HasFlag(Flags.Carry);
+        void ROL(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
+            bool oldCarry = Status.HasFlag(Flags.Carry);
 
             if ((value >> 7) == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -767,9 +766,9 @@ namespace NesEmu.CPU {
 
         }
 
-        void rol_acc() {
-            var value = Accumulator;
-            var oldCarry = Status.HasFlag(Flags.Carry);
+        void ROL_ACC() {
+            byte value = Accumulator;
+            bool oldCarry = Status.HasFlag(Flags.Carry);
 
             if ((value >> 7) == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -783,10 +782,10 @@ namespace NesEmu.CPU {
             Accumulator = value;
             UpdateZeroAndNegative(value);
         }
-        void ror(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
-            var oldCarry = Status.HasFlag(Flags.Carry);
+        void ROR(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
+            bool oldCarry = Status.HasFlag(Flags.Carry);
 
             if ((value & 1) == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -802,9 +801,9 @@ namespace NesEmu.CPU {
 
         }
 
-        void ror_acc() {
-            var value = Accumulator;
-            var oldCarry = Status.HasFlag(Flags.Carry);
+        void ROR_ACC() {
+            byte value = Accumulator;
+            bool oldCarry = Status.HasFlag(Flags.Carry);
 
             if ((value & 1) == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -819,7 +818,7 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void rti() {
+        void RTI() {
             byte statusBits = StackPop();
             Status = (Flags)statusBits;
             ClearStatusFlag(Flags.Break);
@@ -827,14 +826,14 @@ namespace NesEmu.CPU {
             ProgramCounter = StackPopShort();
         }
 
-        void rts() {
+        void RTS() {
             var addr = (ushort)(StackPopShort() + 1);
             ProgramCounter = addr;
         }
 
-        void sbc(AddressingMode mode) {
-            var (address, pageCross) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void SBC(AddressingMode mode) {
+            (ushort address, bool pageCross) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             AddToAcc((byte)(byte.MaxValue - value));
 
             if (pageCross) {
@@ -842,46 +841,46 @@ namespace NesEmu.CPU {
             }
         }
 
-        void sta(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
+        void STA(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
             MemWrite(address, Accumulator);
         }
 
-        void stx(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
+        void STX(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
             MemWrite(address, RegisterX);
         }
 
-        void sty(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
+        void STY(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
             MemWrite(address, RegisterY);
         }
 
-        void tax() {
+        void TAX() {
             RegisterX = Accumulator;
             UpdateZeroAndNegative(RegisterX);
         }
 
-        void tay() {
+        void TAY() {
             RegisterY = Accumulator;
             UpdateZeroAndNegative(RegisterY);
         }
 
-        void tsx() {
+        void TSX() {
             RegisterX = StackPointer;
             UpdateZeroAndNegative(RegisterX);
         }
 
-        void txa() {
+        void TXA() {
             Accumulator = RegisterX;
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void txs() {
+        void TXS() {
             StackPointer = RegisterX;
         }
 
-        void tya() {
+        void TYA() {
             Accumulator = RegisterY;
             UpdateZeroAndNegative(Accumulator);
         }
@@ -891,9 +890,9 @@ namespace NesEmu.CPU {
          * 👮🏻‍
          */
 
-        void aac(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void AAC(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator &= value;
             UpdateZeroAndNegative(value);
@@ -903,23 +902,23 @@ namespace NesEmu.CPU {
             }
         }
 
-        void aax(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
+        void AAX(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
             var value = (byte)(RegisterX & Accumulator);
             MemWrite(address, value);
             //UpdateZeroAndNegative(value);
         }
 
-        void arr(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void ARR(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             Accumulator &= value;
-            ror_acc();
+            ROR_ACC();
             UpdateZeroAndNegative(Accumulator);
 
-            var res = Accumulator;
-            var six = (res & 0b01000000) > 0;
-            var five = (res & 0b00100000) > 0;
+            byte res = Accumulator;
+            bool six = (res & 0b01000000) > 0;
+            bool five = (res & 0b00100000) > 0;
 
             if ((six && five) || (six && !five)) {
                 SetStatusFlag(Flags.Carry);
@@ -930,33 +929,33 @@ namespace NesEmu.CPU {
             }
         }
 
-        void asr(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void ASR(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator &= value;
-            ror_acc();
+            ROR_ACC();
         }
 
-        void atx(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void ATX(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator &= value;
             RegisterX = Accumulator;
             UpdateZeroAndNegative(RegisterX);
         }
 
-        void axa(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
+        void AXA(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
             byte result = (byte)(RegisterX & Accumulator);
             result &= 0b111;
             MemWrite(address, result);
         }
 
-        void axs(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void AXS(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             RegisterX &= Accumulator;
             RegisterX -= value;
@@ -968,9 +967,9 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(RegisterX);
         }
 
-        void dcp(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void DCP(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             value -= 1;
             MemWrite(address, value);
 
@@ -982,8 +981,8 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative((byte)(Accumulator - value));
         }
 
-        void isc(AddressingMode mode) {
-            var value = inc(mode);
+        void ISC(AddressingMode mode) {
+            byte value = INC(mode);
             AddToAcc((byte)(byte.MaxValue - value));
         }
 
@@ -992,9 +991,9 @@ namespace NesEmu.CPU {
         //    self.add_to_acc((value as i8).wrapping_neg().wrapping_sub(1) as u8);
         //}
 
-        void lar(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void LAR(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             byte res = (byte)(value & StackPointer);
             Accumulator = res;
@@ -1003,63 +1002,63 @@ namespace NesEmu.CPU {
             UpdateZeroAndNegative(res);
         }
 
-        void lax(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void LAX(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator = value;
             RegisterX = value;
             UpdateZeroAndNegative(value);
         }
 
-        void rla(AddressingMode mode) {
-            rol(mode);
+        void RLA(AddressingMode mode) {
+            ROL(mode);
 
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator &= value;
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void rra(AddressingMode mode) {
-            ror(mode);
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void RRA(AddressingMode mode) {
+            ROR(mode);
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
             AddToAcc(value);
         }
 
-        void slo(AddressingMode mode) {
-            asl(mode);
+        void SLO(AddressingMode mode) {
+            ASL(mode);
 
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator |= value;
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void sre(AddressingMode mode) {
-            lsr(mode);
+        void SRE(AddressingMode mode) {
+            LSR(mode);
 
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             Accumulator ^= value;
             UpdateZeroAndNegative(Accumulator);
         }
 
-        void sxa(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void SXA(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             var result = (byte)(RegisterX & (value & 0b11110000 + 1));
             MemWrite(address, result);
         }
 
-        void sya(AddressingMode mode) {
-            var (address, _) = GetOperandAddress(mode);
-            var value = MemRead(address);
+        void SYA(AddressingMode mode) {
+            (ushort address, _) = GetOperandAddress(mode);
+            byte value = MemRead(address);
 
             var result = (byte)(RegisterY & (value & 0b11110000 + 1));
             MemWrite(address, result);

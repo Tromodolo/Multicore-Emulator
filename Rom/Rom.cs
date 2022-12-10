@@ -1,9 +1,5 @@
 using NesEmu.Mapper;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace NesEmu.Rom {
     public enum ScreenMirroring {
@@ -18,22 +14,21 @@ namespace NesEmu.Rom {
     public class Rom {
         static byte[] NesTag = new byte[] { 0x4e, 0x45, 0x53, 0x1a };
 
-        public byte[] PrgRom;
-        public byte[] ChrRom;
+        public readonly byte[] ChrRom;
+        public readonly byte[] PrgRom;
+        public readonly byte[] PrgRam;
+        
+        // Not used yet
+        readonly byte[] ChrRam;
+        readonly byte[] ChrNvRam;
+        readonly byte[] PrgNvRam;
 
-        public byte[] PrgRam = new byte[0];
-        public byte[] PrgNvRam = new byte[0];
-
-        public byte[] ChrRam = new byte[0];
-        public byte[] ChrNvRam = new byte[0];
-
-        public ScreenMirroring Mirroring;
-        public IMapper Mapper;
+        public readonly ScreenMirroring Mirroring;
+        public readonly IMapper Mapper;
+        public readonly string Filename;
 
         // NES 2.0 values
-        public byte SubMapper;
-
-        public string Filename;
+        byte SubMapper;
 
         public Rom(byte[] rawBytes, string filename) {
             Filename = filename;
@@ -47,11 +42,11 @@ namespace NesEmu.Rom {
                 throw new Exception("File is not in iNES 1.0 file format");
             }
 
-            var control1 = rawBytes[6];
-            var control2 = rawBytes[7];
+            byte control1 = rawBytes[6];
+            byte control2 = rawBytes[7];
 
-            var mapperLo = (control1 & 0b11110000) >> 4;
-            var mapperHi = control2 & 0b11110000;
+            int mapperLo = (control1 & 0b11110000) >> 4;
+            int mapperHi = control2 & 0b11110000;
             var mapper = (byte)(mapperLo | mapperHi);
 
             ScreenMirroring mirror;
@@ -69,16 +64,16 @@ namespace NesEmu.Rom {
             int chrRomSize;
 
             // NES 2.0
-            var iNesVersion = (control2 >> 2) & 0b11;
+            int iNesVersion = (control2 >> 2) & 0b11;
             if (iNesVersion != 0) {
                 SubMapper = rawBytes[8];
 
                 // LSB
-                var prgRomLsb = rawBytes[4];
-                var chrRomLsb = rawBytes[5];
+                byte prgRomLsb = rawBytes[4];
+                byte chrRomLsb = rawBytes[5];
 
-                var prgRomMsb = rawBytes[9] & 0b1111;
-                var chrRomMsb = (rawBytes[9] & 0b11110000) >> 4;
+                int prgRomMsb = rawBytes[9] & 0b1111;
+                int chrRomMsb = (rawBytes[9] & 0b11110000) >> 4;
 
                 if ((prgRomLsb | (prgRomMsb << 8)) <= 16) {
                     prgRomSize = prgRomLsb * 0x4000;
@@ -92,9 +87,9 @@ namespace NesEmu.Rom {
                     chrRomSize = chrRomLsb | (chrRomMsb << 8);
                 }
 
-                var volatileShifts = rawBytes[10];
-                var prgRamShift = volatileShifts & 0b1111;
-                var prgNvRamShift = (volatileShifts & 0b1111) >> 4;
+                byte volatileShifts = rawBytes[10];
+                int prgRamShift = volatileShifts & 0b1111;
+                int prgNvRamShift = (volatileShifts & 0b1111) >> 4;
                 if (prgRamShift != 0) {
                     PrgRam = new byte[64 << prgRamShift];
                 }
@@ -102,9 +97,9 @@ namespace NesEmu.Rom {
                     PrgNvRam = new byte[64 << prgNvRamShift];
                 }
 
-                var volatileChrShifts = rawBytes[11];
-                var chrRamShift = volatileChrShifts & 0b1111;
-                var chrNvRamShift = (volatileChrShifts & 0b1111) >> 4;
+                byte volatileChrShifts = rawBytes[11];
+                int chrRamShift = volatileChrShifts & 0b1111;
+                int chrNvRamShift = (volatileChrShifts & 0b1111) >> 4;
                 if (chrRamShift != 0) {
                     ChrRam = new byte[64 << chrRamShift];
                 }
@@ -116,8 +111,8 @@ namespace NesEmu.Rom {
                     throw new NotImplementedException("There is only support for NTSC ROMs at this moment");
                 } 
             } else {
-                var prgSize = rawBytes[4];
-                var chrSize = rawBytes[5];
+                byte prgSize = rawBytes[4];
+                byte chrSize = rawBytes[5];
 
                 if (prgSize <= 16) {
                     prgRomSize = prgSize * 0x4000;
@@ -130,18 +125,18 @@ namespace NesEmu.Rom {
                 PrgRam = new byte[0x8000];
             }
 
-            var skip_trainer = (control1 & 0b100) != 0;
+            bool skip_trainer = (control1 & 0b100) != 0;
 
-            int prgRomStart = 16;
+            var prgRomStart = 16;
             if (skip_trainer) {
                 prgRomStart += 512;
             } else {
                 prgRomStart += 0;
             }
-            var chrRomStart = prgRomStart + prgRomSize;
+            int chrRomStart = prgRomStart + prgRomSize;
 
             // Fills PRG with random data, which some games need to seed rng
-            Random rnd = new Random(Guid.NewGuid().GetHashCode());
+            var rnd = new Random(Guid.NewGuid().GetHashCode());
             unsafe {
                 fixed(byte* ram = PrgRam) {
                     for (var i = 0; i < PrgRam.Length; i++) {
@@ -158,7 +153,7 @@ namespace NesEmu.Rom {
             Mapper.RegisterRom(this);
         }
 
-        private IMapper GetMapper(byte mapperId) {
+        private static IMapper GetMapper(byte mapperId) {
             return mapperId switch {
                 0 => new NROM(),
                 1 => new MMC1(),

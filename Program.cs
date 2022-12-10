@@ -15,166 +15,161 @@ using System.Collections.Generic;
 
 namespace NesEmu {
     class Program {
-        static string fileName;
-        static ulong currentFrame = 0;
-        static IntPtr Texture;
-        static bool frameCap = true;
-        static IntPtr window;
+        static ulong CurrentFrame = 0;
+        static bool IsFrameCap = true;
+        static nint Texture;
+        static nint Window;
 
-        static NesCore core;
-        static bool running;
+        static NesCore GameCore;
+        static bool IsRunning;
 
-        static bool isShiftPressed;
-        static bool isSaveStateHappening;
+        static bool IsShiftPressed;
+        static bool IsSaveStateHappening;
 
-        static void Main(string[] args){
+        private static void Main(string[] args) {
+            while (true) {
 #if DEBUG
-            //DebugEntrypoint();
+                //DebugEntrypoint();
 #endif
 
-            var picker = new ConsoleFilePicker(new []{ ".nes", ".nez" }, Directory.GetCurrentDirectory());
-            fileName = picker.SelectFile();
+                var picker = new ConsoleFilePicker(new[] {
+                    ".nes", ".nez"
+                }, Directory.GetCurrentDirectory());
+                string fileName = picker.SelectFile();
 
-            byte[] romByteArr;
-            try {
-                romByteArr = File.ReadAllBytes(fileName);
-            } catch (Exception e) {
-                throw new("Couldn't find file, try again");
-            }
-
-            SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
-            SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
-            // Initilizes 
-            if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
-                Console.WriteLine($"There was an issue initilizing  {SDL_GetError()}");
-                return;
-            }
-
-            // Create a new window given a title, size, and passes it a flag indicating it should be shown.
-            window = SDL_CreateWindow("Nes",
-                                              SDL_WINDOWPOS_UNDEFINED,
-                                              SDL_WINDOWPOS_UNDEFINED,
-                                              256 * 3,
-                                              240 * 3,
-                                              SDL_WindowFlags.SDL_WINDOW_RESIZABLE |
-                                              SDL_WindowFlags.SDL_WINDOW_SHOWN);
-
-            if (window == IntPtr.Zero) {
-                Console.WriteLine($"There was an issue creating the window. {SDL_GetError()}");
-                return;
-            }
-
-            // Creates a new SDL hardware renderer using the default graphics device with VSYNC enabled.
-            var renderer = SDL_CreateRenderer(window,
-                                                  -1,
-                                                  SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
-
-            if (renderer == IntPtr.Zero) {
-                Console.WriteLine($"There was an issue creating the renderer. {SDL_GetError()}");
-                return;
-            }
-
-            Rom.Rom rom = new(romByteArr, fileName);
-            core = new NesCore(rom);
-
-            running = true;
-            currentFrame = 0;
-            Stopwatch sw = new();
-            Stopwatch frameSync = new();
-            string windowTitle = $"Playing ${fileName} - FPS: 0";
-
-            Texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);
-            IntPtr activeController;
-            for (int i = 0; i < SDL_NumJoysticks(); i++) {
-                if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
-                    continue;
+                byte[] romByteArr;
+                try {
+                    romByteArr = File.ReadAllBytes(fileName);
+                } catch (Exception e) {
+                    throw new("Couldn't find file, try again");
                 }
-                activeController = SDL_GameControllerOpen(i);
-                break;
-            }
 
-            sw.Start();
-            frameSync.Start();
+                SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
+                SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+                if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
+                    Console.WriteLine($"There was an issue initializing  {SDL_GetError()}");
+                    return;
+                }
 
-            var coreThread = new Thread(() => {
-                while(running) {
-                    var clock = 0;
-                    do {
-                        if (!isSaveStateHappening) {
-                            core.Clock();
+                // Create a new window given a title, size, and passes it a flag indicating it should be shown.
+                Window = SDL_CreateWindow("Nes", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256 * 3, 240 * 3, SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN);
+
+                if (Window == nint.Zero) {
+                    Console.WriteLine($"There was an issue creating the window. {SDL_GetError()}");
+                    return;
+                }
+
+                // Creates a new SDL hardware renderer using the default graphics device with VSYNC enabled.
+                nint renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
+
+                if (renderer == nint.Zero) {
+                    Console.WriteLine($"There was an issue creating the renderer. {SDL_GetError()}");
+                    return;
+                }
+
+                var rom = new Rom.Rom(romByteArr, fileName);
+                GameCore = new NesCore(rom);
+
+                IsRunning = true;
+                CurrentFrame = 0;
+                var sw = new Stopwatch();
+                var frameSync = new Stopwatch();
+                var windowTitle = $"Playing ${fileName} - FPS: 0";
+
+                Texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);
+                nint activeController;
+                for (var i = 0; i < SDL_NumJoysticks(); i++) {
+                    if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
+                        continue;
+                    }
+                    activeController = SDL_GameControllerOpen(i);
+                    break;
+                }
+
+                sw.Start();
+                frameSync.Start();
+
+                var coreThread = new Thread(() => {
+                    while (IsRunning) {
+                        var clock = 0;
+                        do {
+                            if (IsSaveStateHappening)
+                                continue;
+                            GameCore.Clock();
                             clock++;
-                        }
-                    } while (!core.Bus.PollDrawFrame());
+                        } while (!GameCore.Bus.PollDrawFrame());
 
-                    if (core.Bus.GetDrawFrame()) {
-                        currentFrame++;
-                        core.PPU.DrawFrame(ref renderer, ref Texture);
+                        if (!GameCore.Bus.GetDrawFrame())
+                            continue;
+                        CurrentFrame++;
+                        GameCore.PPU.DrawFrame(ref renderer, ref Texture);
 
-                        if (frameCap) {
+                        if (IsFrameCap) {
                             while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
                                 continue;
                             }
                         }
 
-                        if (currentFrame % 60 == 0 && currentFrame != 0) {
+                        if (CurrentFrame % 60 == 0 && CurrentFrame != 0) {
                             sw.Stop();
-                            currentFrame = 0;
-                            var framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
-                            SDL_SetWindowTitle(window, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)} {core.APU.sampleclock}");
+                            CurrentFrame = 0;
+                            decimal framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
+                            SDL_SetWindowTitle(Window, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)} {GameCore.APU.sampleclock}");
                             sw.Restart();
                         }
-                        core.PlayFrameSamples();
+                        GameCore.PlayFrameSamples();
 
                         frameSync.Restart();
                     }
-                }
-            });
-            coreThread.Start();
+                });
+                coreThread.Start();
 
-            // Main loop for the program
-            while (running) {
-                while (SDL_PollEvent(out SDL_Event e) == 1) {
-                    var key = e.key;
-                    switch (e.type) {
-                        case SDL_EventType.SDL_KEYDOWN:
-                            HandleKeyDown(core, key);
-                            break;
-                        case SDL_EventType.SDL_KEYUP:
-                            HandleKeyUp(core, key);
-                            break;
-                        case SDL_EventType.SDL_CONTROLLERBUTTONDOWN:
-                            SDL_GameControllerButton down = (SDL_GameControllerButton)e.cbutton.button;
-                            HandleButtonDown(core, down);
-                            break;
-                        case SDL_EventType.SDL_CONTROLLERBUTTONUP:
-                            SDL_GameControllerButton up = (SDL_GameControllerButton)e.cbutton.button;
-                            HandleButtonUp(core, up);
-                            break;
-                        case SDL_EventType.SDL_QUIT:
-                            running = false;
-                            break;
+                // Main loop for the program
+                while (IsRunning) {
+                    while (SDL_PollEvent(out var e) == 1) {
+                        var key = e.key;
+                        switch (e.type) {
+                            case SDL_EventType.SDL_KEYDOWN:
+                                HandleKeyDown(GameCore, key);
+                                break;
+                            case SDL_EventType.SDL_KEYUP:
+                                HandleKeyUp(GameCore, key);
+                                break;
+                            case SDL_EventType.SDL_CONTROLLERBUTTONDOWN:
+                                var down = (SDL_GameControllerButton)e.cbutton.button;
+                                HandleButtonDown(GameCore, down);
+                                break;
+                            case SDL_EventType.SDL_CONTROLLERBUTTONUP:
+                                var up = (SDL_GameControllerButton)e.cbutton.button;
+                                HandleButtonUp(GameCore, up);
+                                break;
+                            case SDL_EventType.SDL_QUIT:
+                                IsRunning = false;
+                                break;
+                            default:
+                                break;
+                        }
                     }
                 }
+
+                // Clean up the resources that were created.
+                SDL_DestroyRenderer(renderer);
+                SDL_DestroyWindow(Window);
+                SDL_Quit();
+
+                GameCore.Dispose();
             }
-
-            // Clean up the resources that were created.
-            SDL_DestroyRenderer(renderer);
-            SDL_DestroyWindow(window);
-            SDL_Quit();
-
-            core.Dispose();
-            Main(args);
         }
 
         private static void HandleSaveState(int slot) {
-            if (isShiftPressed) {
-                isSaveStateHappening = true;
-                core.SaveState(slot);
-                isSaveStateHappening = false;
+            if (IsShiftPressed) {
+                IsSaveStateHappening = true;
+                GameCore.SaveState(slot);
+                IsSaveStateHappening = false;
             } else {
-                isSaveStateHappening = true;
-                core.LoadState(slot);
-                isSaveStateHappening = false;
+                IsSaveStateHappening = true;
+                GameCore.LoadState(slot);
+                IsSaveStateHappening = false;
             }
         }
 
@@ -183,7 +178,7 @@ namespace NesEmu {
 
             switch (key.keysym.sym) {
                 case SDL_Keycode.SDLK_TAB:
-                    frameCap = false;
+                    IsFrameCap = false;
                     break;
                 case SDL_Keycode.SDLK_r:
                     core.Reset();
@@ -237,8 +232,10 @@ namespace NesEmu {
                     HandleSaveState(8);
                     break;
                 case SDL_Keycode.SDLK_LSHIFT:
-                    isShiftPressed = true;
-                    break;  
+                    IsShiftPressed = true;
+                    break;
+                default:
+                    break;
             }
 
             core.Bus.Controller1.Update(currentKeys);
@@ -249,7 +246,7 @@ namespace NesEmu {
 
             switch (key.keysym.sym) {
                 case SDL_Keycode.SDLK_TAB:
-                    frameCap = true;
+                    IsFrameCap = true;
                     break;
                 case SDL_Keycode.SDLK_j:
                     currentKeys &= 0b01111111;
@@ -276,10 +273,12 @@ namespace NesEmu {
                     currentKeys &= 0b11111110;
                     break;
                 case SDL_Keycode.SDLK_ESCAPE:
-                    running = false;
+                    IsRunning = false;
                     break;
                 case SDL_Keycode.SDLK_LSHIFT:
-                    isShiftPressed = false;
+                    IsShiftPressed = false;
+                    break;
+                default:
                     break;
             }
 
@@ -291,7 +290,7 @@ namespace NesEmu {
 
             switch (key) {
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-                    frameCap = false;
+                    IsFrameCap = false;
                     break;
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_GUIDE:
                     core.Reset();
@@ -320,6 +319,8 @@ namespace NesEmu {
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
                     currentKeys |= 0b00000001;
                     break;
+                default:
+                    break;
             }
 
             core.Bus.Controller1.Update(currentKeys);
@@ -330,7 +331,7 @@ namespace NesEmu {
 
             switch (key) {
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-                    frameCap = true;
+                    IsFrameCap = true;
                     break;
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_B:
                     currentKeys &= 0b01111111;
@@ -356,167 +357,169 @@ namespace NesEmu {
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
                     currentKeys &= 0b11111110;
                     break;
+                default:
+                    break;
             }
 
             core.Bus.Controller1.Update(currentKeys);
         }
 
         private static void DebugEntrypoint() {
-            var ms = new MemoryStream();
-            var writer = new BinaryWriter(ms);
-
-            writer.Write((byte)0x4e);       // INES Tag
-            writer.Write((byte)0x45);
-            writer.Write((byte)0x53);
-            writer.Write((byte)0x1a);
-
-            writer.Write((byte)0x10);       // Prg Rom LSB
-            writer.Write((byte)0);          // Chr Rom LSB
-
-            writer.Write((byte)0b01000001); // Control Byte 1
-            writer.Write((byte)0b00001100); // Control Byte 2
-
-            writer.Write((byte)0);          // Submapper
-            writer.Write((byte)0);          // xxxxyyyy  X = Chr Rom MSB Y = Prg Rom MSB
-            writer.Write((byte)0);          // Volatile shifts RAM
-            writer.Write((byte)0);          // Volatile shifts Chr RAM
-
-            writer.Write((byte)0);          // Region Flag NTSC
-
-            writer.Write((byte)0);          // Padding
-            writer.Write((byte)0);          // Padding
-            writer.Write((byte)0);          // Padding
-
-            // This is where PRG ROM starts
-            var size = 0x10 * 0x4000;
-            for (int i = 0; i < size; i++) {
-                writer.Write((byte)i); 
-            }
-
-            var debugRom = new Rom.Rom(ms.ToArray(), "Test.nes");
-            const ushort cpuSize = 0x2000;
-            byte bank1 = 0;
-            byte bank2 = 1;
-            byte lastBank = (byte)((debugRom.PrgRom.Length - cpuSize) / cpuSize);
-
-            var testBanks = (bool mode) => {
-                if (mode) {
-                    debugRom.Mapper.CpuRead(0x8000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == (lastBank - 1) * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-
-                    debugRom.Mapper.CpuRead(0xA000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank2 * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-
-                    debugRom.Mapper.CpuRead(0xC000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank1 * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-
-                    debugRom.Mapper.CpuRead(0xE000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == lastBank * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-                } else {
-                    debugRom.Mapper.CpuRead(0x8000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank1 * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-
-                    debugRom.Mapper.CpuRead(0xA000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == bank2 * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-
-                    debugRom.Mapper.CpuRead(0xC000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == (lastBank - 1) * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-
-                    debugRom.Mapper.CpuRead(0xE000);
-                    Debug.Assert(debugRom.Mapper.MappedAddress() == lastBank * cpuSize);
-                    Debug.Assert(debugRom.Mapper.DidMap());
-                }
-            };
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
-            debugRom.Mapper.CpuWrite(0x8001, bank1);
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
-            debugRom.Mapper.CpuWrite(0x8001, bank2);
-
-            testBanks(false);
-
-            bank1 = 14;
-            bank2 = 12;
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
-            debugRom.Mapper.CpuWrite(0x8001, bank1);
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
-            debugRom.Mapper.CpuWrite(0x8001, bank2);
-
-            testBanks(false);
-
-            bank1 = 7;
-            bank2 = 24;
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
-            debugRom.Mapper.CpuWrite(0x8001, bank1);
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
-            debugRom.Mapper.CpuWrite(0x8001, bank2);
-
-            testBanks(false);
-
-            bank1 = 5;
-            bank2 = 6;
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
-            debugRom.Mapper.CpuWrite(0x8001, bank1);
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
-            debugRom.Mapper.CpuWrite(0x8001, bank2);
-
-            testBanks(true);
-
-            bank1 = 9;
-            bank2 = 8;
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
-            debugRom.Mapper.CpuWrite(0x8001, bank1);
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
-            debugRom.Mapper.CpuWrite(0x8001, bank2);
-
-            testBanks(true);
-
-            bank1 = 1;
-            bank2 = 13;
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
-            debugRom.Mapper.CpuWrite(0x8001, bank1);
-
-            debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
-            debugRom.Mapper.CpuWrite(0x8001, bank2);
-
-            testBanks(true);
-
-            // If we made it this far, bank switching is assumed to be correct
-
-            debugRom.Mapper.CpuWrite(0xE001, 0);
-            debugRom.Mapper.CpuWrite(0xC000, 10);
-            debugRom.Mapper.CpuWrite(0xC001, 0);
-
-            debugRom.Mapper.DecrementScanline();
-
-            for (var i = 0; i < 10; i++) {
-                debugRom.Mapper.DecrementScanline();
-            }
-
-            Debug.Assert(debugRom.Mapper.GetIRQ());
-            debugRom.Mapper.CpuWrite(0xE000, 0);
-            Debug.Assert(!debugRom.Mapper.GetIRQ());
-
-            debugRom.Mapper.DecrementScanline();
-
-            return;
+            // var ms = new MemoryStream();
+            // var writer = new BinaryWriter(ms);
+            //
+            // writer.Write((byte)0x4e);       // INES Tag
+            // writer.Write((byte)0x45);
+            // writer.Write((byte)0x53);
+            // writer.Write((byte)0x1a);
+            //
+            // writer.Write((byte)0x10);       // Prg Rom LSB
+            // writer.Write((byte)0);          // Chr Rom LSB
+            //
+            // writer.Write((byte)0b01000001); // Control Byte 1
+            // writer.Write((byte)0b00001100); // Control Byte 2
+            //
+            // writer.Write((byte)0);          // Submapper
+            // writer.Write((byte)0);          // xxxxyyyy  X = Chr Rom MSB Y = Prg Rom MSB
+            // writer.Write((byte)0);          // Volatile shifts RAM
+            // writer.Write((byte)0);          // Volatile shifts Chr RAM
+            //
+            // writer.Write((byte)0);          // Region Flag NTSC
+            //
+            // writer.Write((byte)0);          // Padding
+            // writer.Write((byte)0);          // Padding
+            // writer.Write((byte)0);          // Padding
+            //
+            // // This is where PRG ROM starts
+            // const int size = 0x10 * 0x4000;
+            // for (var i = 0; i < size; i++) {
+            //     writer.Write((byte)i); 
+            // }
+            //
+            // var debugRom = new Rom.Rom(ms.ToArray(), "Test.nes");
+            // const ushort cpuSize = 0x2000;
+            // byte bank1 = 0;
+            // byte bank2 = 1;
+            // byte lastBank = (byte)((debugRom.PrgRom.Length - cpuSize) / cpuSize);
+            //
+            // var testBanks = (bool mode) => {
+            //     if (mode) {
+            //         debugRom.Mapper.CpuRead(0x8000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == (lastBank - 1) * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //
+            //         debugRom.Mapper.CpuRead(0xA000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == bank2 * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //
+            //         debugRom.Mapper.CpuRead(0xC000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == bank1 * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //
+            //         debugRom.Mapper.CpuRead(0xE000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == lastBank * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //     } else {
+            //         debugRom.Mapper.CpuRead(0x8000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == bank1 * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //
+            //         debugRom.Mapper.CpuRead(0xA000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == bank2 * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //
+            //         debugRom.Mapper.CpuRead(0xC000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == (lastBank - 1) * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //
+            //         debugRom.Mapper.CpuRead(0xE000);
+            //         Debug.Assert(debugRom.Mapper.MappedAddress() == lastBank * cpuSize);
+            //         Debug.Assert(debugRom.Mapper.DidMap());
+            //     }
+            // };
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
+            // debugRom.Mapper.CpuWrite(0x8001, bank1);
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
+            // debugRom.Mapper.CpuWrite(0x8001, bank2);
+            //
+            // testBanks(false);
+            //
+            // bank1 = 14;
+            // bank2 = 12;
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
+            // debugRom.Mapper.CpuWrite(0x8001, bank1);
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
+            // debugRom.Mapper.CpuWrite(0x8001, bank2);
+            //
+            // testBanks(false);
+            //
+            // bank1 = 7;
+            // bank2 = 24;
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b00000110);
+            // debugRom.Mapper.CpuWrite(0x8001, bank1);
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b00000111);
+            // debugRom.Mapper.CpuWrite(0x8001, bank2);
+            //
+            // testBanks(false);
+            //
+            // bank1 = 5;
+            // bank2 = 6;
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
+            // debugRom.Mapper.CpuWrite(0x8001, bank1);
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
+            // debugRom.Mapper.CpuWrite(0x8001, bank2);
+            //
+            // testBanks(true);
+            //
+            // bank1 = 9;
+            // bank2 = 8;
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
+            // debugRom.Mapper.CpuWrite(0x8001, bank1);
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
+            // debugRom.Mapper.CpuWrite(0x8001, bank2);
+            //
+            // testBanks(true);
+            //
+            // bank1 = 1;
+            // bank2 = 13;
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b01000110);
+            // debugRom.Mapper.CpuWrite(0x8001, bank1);
+            //
+            // debugRom.Mapper.CpuWrite(0x8000, 0b01000111);
+            // debugRom.Mapper.CpuWrite(0x8001, bank2);
+            //
+            // testBanks(true);
+            //
+            // // If we made it this far, bank switching is assumed to be correct
+            //
+            // debugRom.Mapper.CpuWrite(0xE001, 0);
+            // debugRom.Mapper.CpuWrite(0xC000, 10);
+            // debugRom.Mapper.CpuWrite(0xC001, 0);
+            //
+            // debugRom.Mapper.DecrementScanline();
+            //
+            // for (var i = 0; i < 10; i++) {
+            //     debugRom.Mapper.DecrementScanline();
+            // }
+            //
+            // Debug.Assert(debugRom.Mapper.GetIRQ());
+            // debugRom.Mapper.CpuWrite(0xE000, 0);
+            // Debug.Assert(!debugRom.Mapper.GetIRQ());
+            //
+            // debugRom.Mapper.DecrementScanline();
+            //
+            // return;
         }
     }
 }

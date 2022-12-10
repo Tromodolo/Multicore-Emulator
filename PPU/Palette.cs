@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.PPU {
-    public class Palette {
+    public static class Palette {
         public static (byte r, byte g, byte b)[] SystemPalette = new (byte r, byte g, byte b)[] {
             (84, 84, 84),
             (0, 30, 116),

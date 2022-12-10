@@ -15,12 +15,13 @@ namespace NesEmu.PPU {
         public byte[] PaletteTable;
         public byte[] Vram;
         public byte[] OamData;
-        public byte OamAddr;
-        public Bus.Bus Bus;
+        
+        byte OamAddr;
+        Bus.Bus Bus;
 
-        public int DotsDrawn;
-        public int CurrentScanline;
-        public ulong TotalCycles;
+        int DotsDrawn;
+        int CurrentScanline;
+        ulong TotalCycles;
 
         byte InternalDataBuffer;
         MaskRegister Mask;
@@ -30,7 +31,6 @@ namespace NesEmu.PPU {
         bool NmiInterrupt;
 
         uint[] FrameBuffer = new uint[256 * 240];
-        bool[] BgIsOpaque = new bool[256 * 240];
 
         // Handling these is an absolute nightmare
         // https://wiki.nesdev.org/w/index.php/PPU_scrolling
@@ -38,9 +38,9 @@ namespace NesEmu.PPU {
         // https://github.com/OneLoneCoder/olcNES/blob/master/Part%20%234%20-%20PPU%20Backgrounds/olc2C02.cpp
         Loopy T_Loopy;
         Loopy V_Loopy;
-        byte fineX = 0;
+        byte fineX;
         //// Used when setting/updating T and V
-        bool WriteLatch = false;
+        bool WriteLatch;
 
         byte BgNextTileId,
              BgNextTileAttribute,
@@ -63,11 +63,11 @@ namespace NesEmu.PPU {
             public byte Attribute = 0;
             public bool SpriteZero = false;
         }
-        SpriteEntry[] evaluatedSprites = new SpriteEntry[8];
-        byte spriteCount = 0;
+        SpriteEntry[] EvaluatedSprites = new SpriteEntry[8];
+        byte SpriteCount;
 
-        bool SpriteZeroPossible = false;
-        bool SpriteZeroRendered = false;
+        bool SpriteZeroPossible;
+        bool SpriteZeroRendered;
 
         public PPU(byte[] chrRom) {
             ChrRom = chrRom;
@@ -77,17 +77,17 @@ namespace NesEmu.PPU {
             Vram = new byte[0x800];
 
             InternalDataBuffer = 0;
-            Mask = new();
-            Ctrl = new();
-            Status = new();
+            Mask = new MaskRegister();
+            Ctrl = new ControlRegister();
+            Status = new StatusRegister();
 
             TotalCycles = 0;
             CurrentScanline = 0;
             DotsDrawn = 0;
             NmiInterrupt = false;
 
-            T_Loopy = new();
-            V_Loopy = new();
+            T_Loopy = new Loopy();
+            V_Loopy = new Loopy();
         }
 
         public void RegisterBus(Bus.Bus bus) {
@@ -154,7 +154,6 @@ namespace NesEmu.PPU {
             SpriteShifterPatternHi = reader.ReadBytes(8);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         void IncrementVramAddr() {
             V_Loopy.Increment(Ctrl.GetVramAddrIncrement());
         }
@@ -166,12 +165,11 @@ namespace NesEmu.PPU {
         // Vertical:
         //   [ A1 ] [ B1 ]
         //   [ a2 ] [ b2 ]
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         ushort MirrorVramAddr(ushort addr) {
             // Mirrors values like 0x3000-0x3eff down to 0x2000-0x2eff
-            var mirroredAddr = addr & 0b10111111111111;
+            int mirroredAddr = addr & 0b10111111111111;
             // Get absolute value within vram
-            ushort vector = (ushort)(mirroredAddr - 0x2000);
+            var vector = (ushort)(mirroredAddr - 0x2000);
             
             switch (Bus.Mapper.GetMirroring()) {
                 case ScreenMirroring.Vertical:
@@ -233,15 +231,14 @@ namespace NesEmu.PPU {
             return vector;
         }
 
-        public byte GetChrRom(int addr) {
-            var mapperValue = Bus.Mapper.PPURead((ushort)addr);
+        byte GetChrRom(int addr) {
+            byte mapperValue = Bus.Mapper.PPURead((ushort)addr);
             if (Bus.Mapper.DidMap()) {
                 return mapperValue;
             }
             return ChrRom[addr];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool Clock() {
             TotalCycles++;
 
@@ -316,7 +313,7 @@ namespace NesEmu.PPU {
 
                 // Sprite evaluation
                 if (DotsDrawn == 257 && CurrentScanline >= 0) {
-                    spriteCount = 0;
+                    SpriteCount = 0;
 
                     for (var j = 0; j < 8; j++) {
                         SpriteShifterPatternLo[j] = 0;
@@ -327,9 +324,9 @@ namespace NesEmu.PPU {
                     SpriteZeroPossible = false;
 
                     unsafe {
-                        fixed(SpriteEntry* ptr = evaluatedSprites) {
-                            foreach (var oamEntry in OamData) {
-                                if (spriteCount >= 8) {
+                        fixed(SpriteEntry* ptr = EvaluatedSprites) {
+                            foreach (byte oamEntry in OamData) {
+                                if (SpriteCount >= 8) {
                                     Status.SetSpriteOverflow(true);
                                     break;
                                 }
@@ -337,19 +334,19 @@ namespace NesEmu.PPU {
                                     break;
                                 }
 
-                                var yPosition = OamData[index * 4];
-                                var tileIndex = OamData[(index * 4) + 1];
-                                var attributes = OamData[(index * 4) + 2];
-                                var xPosition = OamData[(index * 4) + 3];
+                                byte yPosition = OamData[index * 4];
+                                byte tileIndex = OamData[(index * 4) + 1];
+                                byte attributes = OamData[(index * 4) + 2];
+                                byte xPosition = OamData[(index * 4) + 3];
 
                                 if (yPosition == 0 && tileIndex == 0 && attributes == 0 && xPosition == 0) {
                                     index++;
                                     continue;
                                 }
 
-                                var yDiff = CurrentScanline - yPosition;
+                                int yDiff = CurrentScanline - yPosition;
                                 if (yDiff >= 0 && yDiff < Ctrl.GetSpriteSize()) {
-                                    if (spriteCount < 8) {
+                                    if (SpriteCount < 8) {
                                         SpriteEntry sprite;
                                         sprite.YPosition = yPosition;
                                         sprite.XPosition = xPosition;
@@ -362,10 +359,10 @@ namespace NesEmu.PPU {
                                             sprite.SpriteZero = false;
                                         }
 
-                                        *(ptr + spriteCount) = sprite;
-                                        spriteCount++;
+                                        *(ptr + SpriteCount) = sprite;
+                                        SpriteCount++;
                                     } else {
-                                        spriteCount++;
+                                        SpriteCount++;
                                     }
                                 }
 
@@ -377,15 +374,13 @@ namespace NesEmu.PPU {
 
                 if (DotsDrawn == 340) {
                     var spriteIndex = 0;
-                    foreach (var sprite in evaluatedSprites) {
-                        byte patternBitsLo, patternBitsHi;
-                        ushort patternAddrLo, patternAddrHi;
-
+                    foreach (var sprite in EvaluatedSprites) {
                         var paletteVal = sprite.Attribute & 0b11;
                         var priority = (sprite.Attribute >> 5 & 1) == 0;
                         var flipHorizontal = (sprite.Attribute >> 6 & 1) == 1;
                         var flipVertical = (sprite.Attribute >> 7 & 1) == 1;
 
+                        ushort patternAddrLo;
                         if (Ctrl.GetSpriteSize() == 8) {
                             if (flipVertical) {
                                 patternAddrLo = (ushort)(Ctrl.GetSpritePatternAddr() | (sprite.TileId * 16) | (byte)(7 - (CurrentScanline - sprite.YPosition)));
@@ -425,9 +420,9 @@ namespace NesEmu.PPU {
                             }
                         }
 
-                        patternAddrHi = (ushort)(patternAddrLo + 8);
-                        patternBitsLo = GetChrRom(patternAddrLo);
-                        patternBitsHi = GetChrRom(patternAddrHi);
+                        var patternAddrHi = (ushort)(patternAddrLo + 8);
+                        byte patternBitsLo = GetChrRom(patternAddrLo);
+                        byte patternBitsHi = GetChrRom(patternAddrHi);
 
                         if (flipHorizontal) {
                             // https://stackoverflow.com/a/2602885
@@ -446,7 +441,7 @@ namespace NesEmu.PPU {
 
                         spriteIndex++;
 
-                        if (spriteIndex >= spriteCount) {
+                        if (spriteIndex >= SpriteCount) {
                             break;
                         }
                     }
@@ -471,17 +466,17 @@ namespace NesEmu.PPU {
             byte fgPixel = 0;
             byte fgPalette = 0;
 
-            bool spritePriority = false;
+            var spritePriority = false;
 
             if (Mask.GetBackground() && (DotsDrawn > 0 && DotsDrawn <= 256 && CurrentScanline >= 0 && CurrentScanline < 240)) {
-                ushort bitMux = (ushort)(0x8000 >> fineX);
+                var bitMux = (ushort)(0x8000 >> fineX);
 
-                byte p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
-                byte p1Pixel = (byte)((BgShifterPatternHi & bitMux) > 0 ? 1 : 0);
+                var p0Pixel = (byte)((BgShifterPatternLo & bitMux) > 0 ? 1 : 0);
+                var p1Pixel = (byte)((BgShifterPatternHi & bitMux) > 0 ? 1 : 0);
                 bgPixel = (byte)((p1Pixel << 1) | p0Pixel);
 
-                byte p0Palette = (byte)((BgShifterAttributeLo & bitMux) > 0 ? 1 : 0);
-                byte p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
+                var p0Palette = (byte)((BgShifterAttributeLo & bitMux) > 0 ? 1 : 0);
+                var p1Palette = (byte)((BgShifterAttributeHi & bitMux) > 0 ? 1 : 0);
                 bgPalette = (byte)((p1Palette << 1) | p0Palette);
             }
 
@@ -489,14 +484,14 @@ namespace NesEmu.PPU {
                 SpriteZeroRendered = false;
 
                 var index = 0;
-                foreach (var sprite in evaluatedSprites) {
-                    if (index >= spriteCount) {
+                foreach (var sprite in EvaluatedSprites) {
+                    if (index >= SpriteCount) {
                         break;
                     }
 
                     if (sprite.XPosition == 0) {
-                        var spritePixelLo = (SpriteShifterPatternLo[index] & 0x80) > 0 ? 1 : 0;
-                        var spritePixelHi = (SpriteShifterPatternHi[index] & 0x80) > 0 ? 1 : 0;
+                        int spritePixelLo = (SpriteShifterPatternLo[index] & 0x80) > 0 ? 1 : 0;
+                        int spritePixelHi = (SpriteShifterPatternHi[index] & 0x80) > 0 ? 1 : 0;
 
                         fgPixel = (byte)((spritePixelHi << 1) | spritePixelLo);
                         fgPalette = (byte)((sprite.Attribute & 0b11) + 0b100);
@@ -518,7 +513,7 @@ namespace NesEmu.PPU {
             byte renderPixel = 0;
             byte renderPalette = 0;
 
-            bool isBg = false;
+            var isBg = false;
 
             if (bgPixel == 0 && fgPixel == 0) {
                 // Just continue;
@@ -543,8 +538,8 @@ namespace NesEmu.PPU {
 
                 if (SpriteZeroPossible && SpriteZeroRendered) {
                     if (Mask.GetBackground() && Mask.GetSprite()) {
-                        var backgroundLeft = Mask.GetBackgroundLeftColumn();
-                        var spriteLeft = Mask.GetSpriteLeftColumn();
+                        bool backgroundLeft = Mask.GetBackgroundLeftColumn();
+                        bool spriteLeft = Mask.GetSpriteLeftColumn();
 
                         if (backgroundLeft && spriteLeft) {
                             if (DotsDrawn >= 1 && DotsDrawn <= 258) {
@@ -594,7 +589,6 @@ namespace NesEmu.PPU {
             return false;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool IsInterrupt() {
             return NmiInterrupt;
         }
@@ -604,46 +598,39 @@ namespace NesEmu.PPU {
         /// If you just want to check, use IsInterrupt()
         /// </summary>
         /// <returns></returns>
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetInterrupt() {
-            var interrupt = NmiInterrupt;
+            bool interrupt = NmiInterrupt;
             NmiInterrupt = false;
             return interrupt;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetBackgroundPatternAddr() {
             return Ctrl.GetBackgroundPatternAddr();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetSpritePatternAddr() {
             return Ctrl.GetSpritePatternAddr();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetSpriteSize() {
             return Ctrl.GetSpriteSize();
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteCtrl(byte value) {
             T_Loopy.NametableX = (byte)(value & 0b01);
             T_Loopy.NametableY = (byte)((value & 0b10) >> 1);
 
-            var beforeNmi = Ctrl.ShouldGenerateVBlank();
+            bool beforeNmi = Ctrl.ShouldGenerateVBlank();
             Ctrl.Update(value);
             if (!beforeNmi && Ctrl.ShouldGenerateVBlank() && Status.IsVBlank()) {
                 NmiInterrupt = true;
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteMask(byte value) {
             Mask.Update(value);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void IncrementScrollX() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 if (V_Loopy.CoarseX == 31) {
@@ -657,7 +644,6 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void IncrementScrollY() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 if (V_Loopy.FineY < 7) {
@@ -678,7 +664,6 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetAddressX() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 V_Loopy.NametableX = T_Loopy.NametableX;//(byte)((V_Loopy.Nametable & 0b1) | ( & 0b10));
@@ -686,7 +671,6 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void ResetAddressY() {
             if (Mask.GetSprite() || Mask.GetBackground()) {
                 V_Loopy.NametableY = T_Loopy.NametableY;//(byte)((V_Loopy.Nametable & 0b10) | (T_Loopy.Nametable & 0b1));
@@ -695,13 +679,12 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void LoadBackgroundShifters() {
             BgShifterPatternLo = (ushort)((BgShifterPatternLo & 0xFF00) | BgNextTileLsb);
             BgShifterPatternHi = (ushort)((BgShifterPatternHi & 0xFF00) | BgNextTileMsb);
 
-            var attributeLo = BgNextTileAttribute & 0b01;
-            var attributeHi = BgNextTileAttribute & 0b10;
+            int attributeLo = BgNextTileAttribute & 0b01;
+            int attributeHi = BgNextTileAttribute & 0b10;
 
             if (attributeLo != 0) {
                 BgShifterAttributeLo = (ushort)((BgShifterAttributeLo & 0xFF00) | 0xFF);
@@ -715,10 +698,9 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private void UpdateShifters() {
             unsafe {
-                fixed (SpriteEntry* ptr = evaluatedSprites) {
+                fixed (SpriteEntry* ptr = EvaluatedSprites) {
                     if (Mask.GetBackground()) {
                         BgShifterAttributeLo <<= 1;
                         BgShifterAttributeHi <<= 1;
@@ -727,7 +709,7 @@ namespace NesEmu.PPU {
                     }
 
                     if (Mask.GetSprite() && DotsDrawn >= 1 && DotsDrawn < 258) {
-                        for (var index  = 0; index < spriteCount; index++) {
+                        for (var index  = 0; index < SpriteCount; index++) {
                             var sprite = *(ptr + index);
                             if (sprite.XPosition > 0) {
                                 sprite.XPosition -= 1;
@@ -742,16 +724,14 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private (byte r, byte g, byte b) GetPaletteFromMemory(byte palette, byte pixel) {
             return Palette.SystemPalette[PaletteTable[(palette << 2) + pixel] & 0x3f];
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteScroll(byte value) {
             if (WriteLatch) {
-                var coarseY = value >> 3;
-                var fineY = value & 0b111;
+                int coarseY = value >> 3;
+                int fineY = value & 0b111;
 
                 T_Loopy.CoarseY = (byte)coarseY;
                 T_Loopy.FineY = (byte)fineY;
@@ -759,14 +739,13 @@ namespace NesEmu.PPU {
                 WriteLatch = false;
             } else {
                 fineX = (byte)(value & 0b111);
-                var coarseX = value >> 3;
+                int coarseX = value >> 3;
                 T_Loopy.CoarseX = (byte)coarseX;
 
                 WriteLatch = true;
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WritePPUAddr(byte value) {
             if (WriteLatch) {
                 T_Loopy.Update((ushort)((T_Loopy.GetAddress() & 0xFF00) | value));
@@ -778,42 +757,41 @@ namespace NesEmu.PPU {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetData() {
-            var addr = V_Loopy.GetAddress();
+            ushort addr = V_Loopy.GetAddress();
             IncrementVramAddr();
 
             return Read(addr);
         }
 
-        public byte Read(ushort addr) {
-            var mapperValue = Bus.Mapper.PPURead(addr);
+        byte Read(ushort addr) {
+            byte mapperValue = Bus.Mapper.PPURead(addr);
             if (Bus.Mapper.DidMap()) {
                 return mapperValue;
             }
 
             if (addr >= 0 && addr <= 0x1fff) {
-                var result = InternalDataBuffer;
+                byte result = InternalDataBuffer;
                 InternalDataBuffer = GetChrRom(addr);
                 return result;
             }
 
             // Nametable
             if (addr >= 0x2000 && addr <= 0x2fff) {
-                var result = InternalDataBuffer;
+                byte result = InternalDataBuffer;
                 InternalDataBuffer = Vram[MirrorVramAddr(addr)];
                 return result;
             }
 
             if (addr >= 0x3000 && addr <= 0x3eff) {
                 // Normally undefined address space, but some games depend on this like Zelda
-                var result = InternalDataBuffer;
+                byte result = InternalDataBuffer;
                 InternalDataBuffer = Vram[MirrorVramAddr(addr)];
                 return result;
             }
 
             if (addr == 0x3f10 || addr == 0x3f14 || addr == 0x3f18 || addr == 0x3f1c) {
-                var mirror = addr - 0x10;
+                int mirror = addr - 0x10;
                 return PaletteTable[mirror - 0x3f00];
             }
 
@@ -825,7 +803,7 @@ namespace NesEmu.PPU {
         }
 
         public void WriteData(byte value) {
-            var addr = V_Loopy.GetAddress();
+            ushort addr = V_Loopy.GetAddress();
             IncrementVramAddr();
 
             Bus.Mapper.PPUWrite(addr, value);
@@ -863,7 +841,7 @@ namespace NesEmu.PPU {
         }
 
         public byte GetStatus() {
-            var status = Status.GetSnapshot();
+            byte status = Status.GetSnapshot();
             Status.ResetVBlank();
             WriteLatch = false;
             return status;
@@ -885,7 +863,7 @@ namespace NesEmu.PPU {
         }
 
         public void WriteDMA(byte[] data) {
-            foreach (var b in data) {
+            foreach (byte b in data) {
                 OamData[OamAddr] = b;
                 OamAddr++;
             }
@@ -896,11 +874,11 @@ namespace NesEmu.PPU {
         }
 
         public byte[] GetNametableTilePalette(byte[] nametable, byte tileX, byte tileY) {
-            var attrTableIndex = tileY / 4 * 8 + tileX / 4;
-            var attrValue = nametable[0x3c0 + attrTableIndex];
+            int attrTableIndex = tileY / 4 * 8 + tileX / 4;
+            byte attrValue = nametable[0x3c0 + attrTableIndex];
 
-            var segmentX = tileX % 4 / 2;
-            var segmentY = tileY % 4 / 2;
+            int segmentX = tileX % 4 / 2;
+            int segmentY = tileY % 4 / 2;
 
             byte paletteIndex = 0;
             if (segmentX == 0) {
@@ -917,7 +895,7 @@ namespace NesEmu.PPU {
                 }
             }
 
-            var paletteStart =  1 + paletteIndex * 4;
+            int paletteStart =  1 + paletteIndex * 4;
             return new byte[] {
                 PaletteTable[0],
                 PaletteTable[paletteStart],
@@ -927,7 +905,7 @@ namespace NesEmu.PPU {
         }
 
         public byte[] GetSpritePalette(byte spriteIndex) {
-            var paletteStart = 17 + (spriteIndex * 4);
+            int paletteStart = 17 + (spriteIndex * 4);
             return new byte[] {
                 0,
                 PaletteTable[paletteStart],
@@ -936,7 +914,7 @@ namespace NesEmu.PPU {
             };
         }
 
-        public void DrawFrame(ref IntPtr renderer, ref IntPtr Texture) {
+        public void DrawFrame(ref nint renderer, ref nint Texture) {
             unsafe {
                 SDL.SDL_Rect rect;
                 rect.w = 256 * 3;
@@ -945,12 +923,12 @@ namespace NesEmu.PPU {
                 rect.y = 0;
 
                 fixed (uint* pArray = FrameBuffer) {
-                    IntPtr intPtr = new(pArray);
+                    var intPtr = new nint(pArray);
 
-                    SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, 256 * 4);
+                    _ = SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, 256 * 4);
                 }
 
-                SDL.SDL_RenderCopy(renderer, Texture, IntPtr.Zero, ref rect);
+                _ = SDL.SDL_RenderCopy(renderer, Texture, nint.Zero, ref rect);
                 SDL.SDL_RenderPresent(renderer);
             }
         }

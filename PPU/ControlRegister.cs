@@ -27,7 +27,6 @@ namespace NesEmu.Rom {
             Status = 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetNameTableAddress() {
             var status = (byte)Status;
             return (status & 0b11) switch {
@@ -39,7 +38,6 @@ namespace NesEmu.Rom {
             };
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetVramAddrIncrement() {
             if ((Status & (1 << 2)) > 1) {
                 return 32;
@@ -48,7 +46,6 @@ namespace NesEmu.Rom {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetBackgroundPatternAddr() {
             if ((Status & (1 << 4)) > 1) {
                 return 0x1000;
@@ -57,7 +54,6 @@ namespace NesEmu.Rom {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort GetSpritePatternAddr() {
             if ((Status & (1 << 3)) > 1) {
                 return 0x1000;
@@ -66,7 +62,6 @@ namespace NesEmu.Rom {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte GetSpriteSize() {
             if ((Status & (1 << 5)) > 1) {
                 return 16;
@@ -75,7 +70,6 @@ namespace NesEmu.Rom {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte MasterSlaveSelect() {
             if ((Status & (1 << 6)) > 1) {
                 return 1;
@@ -84,7 +78,6 @@ namespace NesEmu.Rom {
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool ShouldGenerateVBlank() {
             return (Status & (1 << 7)) > 1;
         }
@@ -93,7 +86,6 @@ namespace NesEmu.Rom {
             return Status;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(byte data) {
             Status = data;
         }

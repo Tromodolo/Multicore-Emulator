@@ -1,4 +1,5 @@
-﻿using NesEmu.CPU;
+﻿using BizHawk.NES;
+using NesEmu.CPU;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -7,51 +8,52 @@ using static SDL2.SDL;
 
 namespace NesEmu {
     internal class NesCore : IDisposable {
-        public Bus.Bus Bus;
-        public NesCpu CPU;
-        public PPU.PPU PPU;
-        public BizHawk.NES.APU APU;
-        public Rom.Rom Rom;
+        public readonly PPU.PPU PPU;
+        public readonly Bus.Bus Bus;
+        public readonly APU APU;
+
+        NesCpu CPU;
+        readonly Rom.Rom Rom;
 
         int SamplesPerFrame = (44100 / 60) + 1;
-        SDL_AudioSpec sdlSpec;
-        int audioDevice = -1;
-        string usedDevice = "";
+        string UsedDevice;
+        readonly SDL_AudioSpec SdlSpec;
+        readonly int AudioDevice;
 
         public NesCore(Rom.Rom rom) {
-            PPU = new(rom.ChrRom);
-            CPU = new();
-            APU = new(CPU, null, false);
-            Bus = new(CPU, PPU, APU, rom);
+            CPU = new NesCpu();
+            PPU = new PPU.PPU(rom.ChrRom);
+            APU = new APU(CPU, null, false);
+            Bus = new Bus.Bus(CPU, PPU, APU, rom);
             Rom = rom;
 
             CPU.RegisterBus(Bus);
             PPU.RegisterBus(Bus);
 
-            usedDevice = "";
+            UsedDevice = "";
             if (File.Exists("audio_device.conf")) {
-                usedDevice = File.ReadAllText("audio_device.conf");
+                UsedDevice = File.ReadAllText("audio_device.conf");
             }
 
-            if (string.IsNullOrEmpty(usedDevice)) {
+            if (string.IsNullOrEmpty(UsedDevice)) {
                 //Console.CursorTop++;
                 Console.Clear();
 
-                List<string> devices = new List<string>();
+                var devices = new List<string>();
                 int count = SDL_GetNumAudioDevices(0);
-                for (int i = 0; i < count; ++i) {
+                for (var i = 0; i < count; ++i) {
                     devices.Add(SDL_GetAudioDeviceName(i, 0));
                 }
 
                 Console.WriteLine($"Select your audio device: ");
 
+                var marked = 0;
                 int selected = -1;
-                int marked = 0;
                 int initialRow = Console.CursorTop;
                 while (selected < 0) {
                     Console.CursorTop = initialRow;
                     var index = 0;
-                    foreach (var dev in devices) {
+                    foreach (string dev in devices) {
                         if (index == marked) {
                             Console.BackgroundColor = ConsoleColor.DarkGreen;
                             Console.ForegroundColor = ConsoleColor.Black;
@@ -65,37 +67,41 @@ namespace NesEmu {
                     }
 
                     var nextKey = Console.ReadKey();
-                    if (nextKey.Key == ConsoleKey.DownArrow) {
-                        if (marked == devices.Count - 1) {
+                    switch (nextKey.Key) {
+                        case ConsoleKey.DownArrow when marked == devices.Count - 1:
                             continue;
-                        }
-                        marked++;
-                    } else if (nextKey.Key == ConsoleKey.UpArrow) {
-                        if (marked == 0) {
+                        case ConsoleKey.DownArrow:
+                            marked++;
+                            break;
+                        case ConsoleKey.UpArrow when marked == 0:
                             continue;
-                        }
-                        marked--;
-                    } else if (nextKey.Key == ConsoleKey.Enter) {
-                        selected = marked;
+                        case ConsoleKey.UpArrow:
+                            marked--;
+                            break;
+                        case ConsoleKey.Enter:
+                            selected = marked;
+                            break;
+                        default:
+                            break;
                     }
                 }
-                usedDevice = devices[selected];
-                File.WriteAllText("audio_device.conf", usedDevice);
+                UsedDevice = devices[selected];
+                File.WriteAllText("audio_device.conf", UsedDevice);
             }
 
-            sdlSpec.channels = 1;
-            sdlSpec.freq = 44100;
-            sdlSpec.samples = 4096;
-            sdlSpec.format = AUDIO_S16LSB;
-            audioDevice = (int)SDL_OpenAudioDevice(usedDevice, 0, ref sdlSpec, out SDL_AudioSpec received, 0);
-
-            if (audioDevice == 0) {
+            SdlSpec.channels = 1;
+            SdlSpec.freq = 44100;
+            SdlSpec.samples = 4096;
+            SdlSpec.format = AUDIO_S16LSB;
+            
+            AudioDevice = (int)SDL_OpenAudioDevice(UsedDevice, 0, ref SdlSpec, out var received, 0);
+            if (AudioDevice == 0) {
                 Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
-            } else {
-                Console.WriteLine($"Audio Device Initialized: {usedDevice}");
+                return;
             }
-
-            SDL_PauseAudioDevice((uint)audioDevice, 0);
+            
+            Console.WriteLine($"Audio Device Initialized: {UsedDevice}");
+            SDL_PauseAudioDevice((uint)AudioDevice, 0);
         }
 
         /// <summary>
@@ -112,25 +118,25 @@ namespace NesEmu {
         }
 
         public void PlayFrameSamples() {
-            var count = APU.sampleclock;
-            Bus.blip.EndFrame(count);
+            uint count = APU.sampleclock;
+            Bus.Blip.EndFrame(count);
             APU.sampleclock = 0;
 
-            var numAvailable = Bus.blip.SamplesAvailable();
             var samples = new short[SamplesPerFrame];
-            var samplesSelected = Math.Min(numAvailable, SamplesPerFrame);
-            Bus.blip.ReadSamples(samples, samplesSelected, false);
+            int numAvailable = Bus.Blip.SamplesAvailable();
+            int samplesSelected = Math.Min(numAvailable, SamplesPerFrame);
+            Bus.Blip.ReadSamples(samples, samplesSelected, false);
 
             if (numAvailable != SamplesPerFrame) {
                 samples = Resample(samples, samplesSelected, SamplesPerFrame);
             }
 
-            var numQueued = SDL_GetQueuedAudioSize((uint)audioDevice);
+            uint numQueued = SDL_GetQueuedAudioSize((uint)AudioDevice);
             if (numQueued < 4096*3) {
                 unsafe {
                     fixed (short* ptr = samples) {
-                        IntPtr intPtr = new(ptr);
-                        SDL_QueueAudio((uint)audioDevice, intPtr, (uint)(numAvailable * 2));
+                        var intPtr = new nint(ptr);
+                        _ = SDL_QueueAudio((uint)AudioDevice, intPtr, (uint)(numAvailable * 2));
                     }
                 }
             }
@@ -138,12 +144,12 @@ namespace NesEmu {
         }
 
         public void Dispose() {
-            SDL_CloseAudioDevice((uint)audioDevice);
+            SDL_CloseAudioDevice((uint)AudioDevice);
             Bus.Mapper.Persist();
         }
 
         public void SaveState(int slot) {
-            var gameName = Rom.Filename.Split('\\').LastOrDefault();
+            string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
             var stateFileName = $"{gameName}.{slot}.state";
@@ -157,42 +163,41 @@ namespace NesEmu {
         }
 
         public void LoadState(int slot) {
-            var gameName = Rom.Filename.Split('\\').LastOrDefault();
+            string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
             var stateFileName = $"{gameName}.{slot}.state";
 
-            if (File.Exists(stateFileName)) {
-                var fileStream = new FileStream(stateFileName, FileMode.Open);
-                var binaryReader = new BinaryReader(fileStream);
-                CPU.Load(binaryReader);
-                PPU.Load(binaryReader);
-                Bus.Load(binaryReader);
-                fileStream.Close();
-            }
+            if (!File.Exists(stateFileName))
+                return;
+            var fileStream = new FileStream(stateFileName, FileMode.Open);
+            var binaryReader = new BinaryReader(fileStream);
+            CPU.Load(binaryReader);
+            PPU.Load(binaryReader);
+            Bus.Load(binaryReader);
+            fileStream.Close();
         }
 
         // Taken from BizHawk, their license should be in my license file - Tromo
         // This uses simple linear interpolation which is supposedly not a great idea for
         // resampling audio, but it sounds surprisingly good to me. Maybe it works well
         // because we are typically stretching by very small amounts.
-        private short[] Resample(short[] input, int inputCount, int outputCount) {
+        private static short[] Resample(short[] input, int inputCount, int outputCount) {
             if (inputCount == outputCount) {
                 return input;
             }
 
-            int channels = 1;
-
-            short[] output = new short[outputCount * channels];
+            const int channels = 1;
+            var output = new short[outputCount * channels];
 
             if (inputCount == 0 || outputCount == 0) {
                 Array.Clear(output, 0, outputCount * channels);
                 return output;
             }
 
-            for (int iOutput = 0; iOutput < outputCount; iOutput++) {
+            for (var iOutput = 0; iOutput < outputCount; iOutput++) {
                 double iInput = ((double)iOutput / (outputCount - 1)) * (inputCount - 1);
-                int iInput0 = (int)iInput;
+                var iInput0 = (int)iInput;
                 int iInput1 = iInput0 + 1;
                 double input0Weight = iInput1 - iInput;
                 double input1Weight = iInput - iInput0;
@@ -200,7 +205,7 @@ namespace NesEmu {
                 if (iInput1 == inputCount)
                     iInput1 = inputCount - 1;
 
-                for (int iChannel = 0; iChannel < channels; iChannel++) {
+                for (var iChannel = 0; iChannel < channels; iChannel++) {
                     double value =
                         input[iInput0 * channels + iChannel] * input0Weight +
                         input[iInput1 * channels + iChannel] * input1Weight;

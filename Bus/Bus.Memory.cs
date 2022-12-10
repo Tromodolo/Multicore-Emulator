@@ -16,7 +16,6 @@ namespace NesEmu.Bus {
         const ushort PrgRomStart = 0x8000;
         const ushort PrgRomEnd = 0xffff;
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MemWrite(ushort address, byte value) {
             Mapper.CpuWrite(address, value);
             if (Mapper.DidMap()) {
@@ -26,14 +25,12 @@ namespace NesEmu.Bus {
             if (address >= RamMirrorStart && address <= RamMirrorsEnd) {
                 var mirror = (ushort)(address & 0b11111111111);
                 VRAM[mirror] = value;
-            }
-
-            if (address == 0x2000) {            //Ctrl
+            } else if (address == 0x2000) {     //Ctrl
                 PPU.WriteCtrl(value);
             } else if (address == 0x2001) {     //Mask
                 PPU.WriteMask(value);
             } else if (address == 0x2002) {     //Status
-                throw new("Trying to write to status REEEEEEEEEEEEEEEEEEEEEEEEEEE");
+                throw new Exception("Trying to write to status REEEEEEEEEEEEEEEEEEEEEEEEEEE");
             } else if (address == 0x2003) {     //OAM Addr
                 PPU.WriteOAMAddr(value);
             } else if (address == 0x2004) {     //OAM Data
@@ -44,41 +41,28 @@ namespace NesEmu.Bus {
                 PPU.WritePPUAddr(value);
             } else if (address == 0x2007) {     //Data
                 PPU.WriteData(value);
-            }
-
-            if ((address >= 0x4000 && address <= 0x4013) || address == 0x4015) {
+            } else if ((address >= 0x4000 && address <= 0x4013) || address == 0x4015) {
                 APU.WriteReg(address, value);
-            } 
-
-            if (address == 0x4016) {
+            } else if (address == 0x4016) {
                 if ((value & 1) == 1) {
                     Controller1.ResetLatch();
                 }
                 // Controller 1, not handled yet
             } else if (address == 0x4017) {
                 // Controller 2, not handled yet
-            }
-
-            if (address == 0x4014) {
+            } else if (address == 0x4014) {
                 DmaActive = true;
                 DmaPage = value;
                 DmaAddr = 0x00;
-            }
-
-            if (address >= 0x2008 && address <= PPUMirrorsEnd) {
+            } else if (address >= 0x2008 && address <= PPUMirrorsEnd) {
                 var mirror = (ushort)(address & 0b00100000_00000111);
                 MemWrite(mirror, value);
             }
-
-            // Unknown address
-            return;
-            
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public byte MemRead(ushort address) {
             unsafe {
-                var mapperValue = Mapper.CpuRead(address);
+                byte mapperValue = Mapper.CpuRead(address);
                 if (Mapper.DidMap()) {
                     return mapperValue;
                 }
@@ -88,9 +72,7 @@ namespace NesEmu.Bus {
                         var mirror = (ushort)(address & 0b11111111111);
                         return *(ptr + mirror);
                     }
-                }
-
-                if (address == 0x2000) {            //Ctrl
+                } else if (address == 0x2000) {            //Ctrl
                     return 0;
                 } else if (address == 0x2001) {     //Mask
                     return 0;
@@ -106,30 +88,22 @@ namespace NesEmu.Bus {
                     return 0;
                 } else if (address == 0x2007) {     //Data
                     return PPU.GetData();
-                }
-
-                if ((address >= 0x4000 && address <= 0x4013) || address == 0x4015) {
+                } else if ((address >= 0x4000 && address <= 0x4013) || address == 0x4015) {
                     return 0;
-                }
-
-                if (address == 0x4016) {
+                } else if (address == 0x4016) {
                     return Controller1.ReadNextButton();
                 } else if (address == 0x4017) {
                     // Controller 2, not handled yet
                     return 0;
-                }
-
-                if (address >= 0x2008 && address <= PPUMirrorsEnd) {
+                } else if (address >= 0x2008 && address <= PPUMirrorsEnd) {
                     var mirror = (ushort)(address & 0b00100000_00000111);
                     return MemRead(mirror);
+                } else {
+                    return 0;
                 }
-
-                // Unknown address
-                return 0;
             }
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void MemWriteShort(ushort address, ushort value) {
             var hiValue = (byte)(value >> 8);
             var loValue = (byte)(value & 0xff);
@@ -137,10 +111,9 @@ namespace NesEmu.Bus {
             MemWrite(++address, hiValue);
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public ushort MemReadShort(ushort address) {
-            var loValue = MemRead(address);
-            var hiValue = MemRead(++address);
+            byte loValue = MemRead(address);
+            byte hiValue = MemRead(++address);
             return (ushort)(hiValue << 8 | loValue);
         }
     }

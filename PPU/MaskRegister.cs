@@ -32,32 +32,26 @@ namespace NesEmu.PPU {
             Status = 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetGreyscale() {
             return (Status & 1) > 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetBackgroundLeftColumn() {
             return (Status & (1 << 1)) > 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetBackground() {
             return (Status & (1 << 3)) > 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetSpriteLeftColumn() {
             return (Status & (1 << 2)) > 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public bool GetSprite() {
             return (Status & (1 << 4)) > 0;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public IEnumerable<Color> GetEmphasis() {
             var colors = new List<Color>();
 
@@ -78,7 +72,6 @@ namespace NesEmu.PPU {
             return Status;
         }
 
-        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void Update(byte data) {
             Status = data;
         }

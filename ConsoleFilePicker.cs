@@ -62,7 +62,7 @@ namespace NesEmu {
                         break;
                     case ConsoleKey.Enter:
                     case ConsoleKey.RightArrow:
-                        var selection = CurrentFiles[CurrentIndex];
+                        string selection = CurrentFiles[CurrentIndex];
                         if (selection == $@"{CurrentDirectory}\..") {
                             CurrentDirectory = Path.Combine(CurrentDirectory, @"..");
                             CurrentDirectory = Path.GetFullPath(CurrentDirectory);
@@ -96,8 +96,8 @@ namespace NesEmu {
             var files = Directory.GetFiles(CurrentDirectory).ToList();
             var filteredFiles = new List<string>();
 
-            foreach (var file in files) {
-                foreach (var ft in FilteredFileTypes) {
+            foreach (string file in files) {
+                foreach (string ft in FilteredFileTypes) {
                     if (file.EndsWith(ft)) {
                         filteredFiles.Add(file);
                     }
@@ -107,9 +107,9 @@ namespace NesEmu {
             CurrentFiles = filteredFiles;
 
             CurrentFiles.Insert(0, $@"{CurrentDirectory}\..");
-            var folders = Directory.GetDirectories(CurrentDirectory);
-            int folderIndex = 1;
-            foreach (var folder in folders) {
+            string[] folders = Directory.GetDirectories(CurrentDirectory);
+            var folderIndex = 1;
+            foreach (string folder in folders) {
                 CurrentFiles.Insert(folderIndex, $@"{folder}\");
                 folderIndex++;
             }
@@ -128,8 +128,8 @@ namespace NesEmu {
 
             var index = 0;
             var rendered = 1;
-            string list = "";
-            foreach (var file in CurrentFiles) {
+            var list = "";
+            foreach (string file in CurrentFiles) {
                 if (index >= FileOffset && rendered < Console.WindowHeight) {
                     if (index == CurrentIndex) {
                         list += "> ";

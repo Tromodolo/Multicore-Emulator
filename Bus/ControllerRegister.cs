@@ -25,7 +25,7 @@ namespace NesEmu.Bus {
         // Order:
         // A, B, Select, Start, Up, Down, Left, Right
         public byte ReadNextButton() {
-            byte unmasked =  (byte)(CurrentButtons >> (7 - ButtonLatch));
+            var unmasked =  (byte)(CurrentButtons >> (7 - ButtonLatch));
             ButtonLatch++;
             return (byte)(unmasked & 0b1);
         }

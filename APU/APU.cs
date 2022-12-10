@@ -238,7 +238,6 @@ namespace BizHawk.NES {
 				}
 			}
 
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			public void Run() {
 				if (env_constant == 1)
 					env_output = env_cnt_value;
@@ -411,7 +410,6 @@ namespace BizHawk.NES {
 					len_cnt--;
 			}
 
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			public void Run() {
 				if (env_constant == 1)
 					env_output = env_cnt_value;
@@ -524,7 +522,6 @@ namespace BizHawk.NES {
 
 			public int Debug_PeriodValue => timer_cnt;
 
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			public void Run() {
 				// when clocked by timer, seq steps forward
 				// except when linear counter or length counter is 0 
@@ -653,7 +650,6 @@ namespace BizHawk.NES {
 			//	ser.EndSection();
 			//}
 
-			[MethodImpl(MethodImplOptions.AggressiveInlining)]
 			public void Run() {
 				timer_just_reloaded = false;
 				if (timer > 0) timer--;
@@ -1151,7 +1147,6 @@ namespace BizHawk.NES {
 		public int DebugCallbackDivider;
 		public int DebugCallbackTimer;
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public void RunOneFirst() {
 
 			pulse[0].Run();
@@ -1260,7 +1255,6 @@ namespace BizHawk.NES {
 		private int cart_sound = 0;
 		private int old_cart_sound = 0;
 
-		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public int EmitSample() {
 			if (recalculate) {
 				recalculate = false;

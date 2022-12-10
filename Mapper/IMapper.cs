@@ -13,8 +13,7 @@ namespace NesEmu.Mapper {
             return false;
         }
 
-        public void SetIRQ(bool IRQ) {
-        }
+        public void SetIRQ(bool IRQ) {}
 
         public void SetProgramCounter(int pc) {}
         public void DecrementScanline() { }
