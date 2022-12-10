@@ -191,10 +191,10 @@ namespace NesEmu.Bus {
 
                 APU.RunOneLast();
 
-                int samle = APU.EmitSample();
-                if (samle != oldSample) {
-                    blip.AddDelta(APU.sampleclock, samle - oldSample);
-                    oldSample = samle;
+                int sample = APU.EmitSample();
+                if (sample != oldSample) {
+                    blip.AddDelta(APU.sampleclock, sample - oldSample);
+                    oldSample = sample;
                 }
 
                 APU.sampleclock++;

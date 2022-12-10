@@ -210,25 +210,9 @@ namespace NesEmu.CPU {
             if (IRQPending && (Status & Flags.InterruptDisable) == 0) {
                 IRQ();
                 return;
-                //op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
-                //FreezeExecution = !Ready;
-                //if (FreezeExecution) {
-                //    return;
-                //}
-                //ProgramCounter++;
-                //mode = op.Mode;
-                //PCCopy = ProgramCounter;
             } else if (Bus.GetNmiStatus()) {
                 NMI();
                 return;
-                //op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
-                //FreezeExecution = !Ready;
-                //if (FreezeExecution) {
-                //    return;
-                //}
-                //ProgramCounter++;
-                //mode = op.Mode;
-                //PCCopy = ProgramCounter;
             } else {
                 FreezeExecution = !Ready;
                 if (FreezeExecution) {
@@ -290,13 +274,13 @@ namespace NesEmu.CPU {
                     bit(mode);
                     break;
                 case "CMP":
-                    compare(mode, Accumulator);
+                    compare(mode, Accumulator, true);
                     break;
                 case "CPX":
-                    compare(mode, RegisterX);
+                    compare(mode, RegisterX, false);
                     break;
                 case "CPY":
-                    compare(mode, RegisterY);
+                    compare(mode, RegisterY, false);
                     break;
                 case "DEC":
                     dec(mode);
@@ -575,7 +559,7 @@ namespace NesEmu.CPU {
             }
         }
 
-        void compare(AddressingMode mode, byte value) {
+        void compare(AddressingMode mode, byte value, bool pageCrossAvailable) {
             var (address, pageCross) = GetOperandAddress(mode);
             var memVal = MemRead(address);
             if (memVal <= value) {
@@ -585,7 +569,7 @@ namespace NesEmu.CPU {
             }
             UpdateZeroAndNegative((byte)(value - memVal));
 
-            if (pageCross) {
+            if (pageCross && pageCrossAvailable) {
                 NumCyclesExecuted += 1;
             }
         }
@@ -649,6 +633,7 @@ namespace NesEmu.CPU {
 
         void jmp_indirect() {
             var address = MemReadShort(ProgramCounter);
+            NumCyclesExecuted += 2;
             // 6502 bug mode with with page boundary:
             //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
             // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
