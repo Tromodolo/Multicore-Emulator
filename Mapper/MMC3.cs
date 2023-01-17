@@ -182,8 +182,8 @@ namespace NesEmu.Mapper {
             }
 
             if (Handled) {
-                UpdateOffsets();
-            }
+            UpdateOffsets();
+        }
         }
 
         public byte PPURead(ushort address) {
@@ -207,35 +207,48 @@ namespace NesEmu.Mapper {
 
         private void UpdateOffsets() {
             if (PrgMode) {
-                PrgOffsets[0] = (LastBank - 1) * PRG_SIZE;
-                PrgOffsets[1] = BankRegisters[7] * PRG_SIZE;
-                PrgOffsets[2] = BankRegisters[6] * PRG_SIZE;
-                PrgOffsets[3] = LastBank * PRG_SIZE;
+                PrgOffsets[0] = LastBank - 1;
+                PrgOffsets[1] = BankRegisters[7];
+                PrgOffsets[2] = BankRegisters[6];
+                PrgOffsets[3] = LastBank;
             } else {
-                PrgOffsets[0] = BankRegisters[6] * PRG_SIZE;
-                PrgOffsets[1] = BankRegisters[7] * PRG_SIZE;
-                PrgOffsets[2] = (LastBank - 1) * PRG_SIZE;
-                PrgOffsets[3] = LastBank * PRG_SIZE;
+                PrgOffsets[0] = BankRegisters[6];
+                PrgOffsets[1] = BankRegisters[7];
+                PrgOffsets[2] = LastBank - 1;
+                PrgOffsets[3] = LastBank;
             }
 
             if (ChrMode) {
-                ChrOffsets[0] = BankRegisters[2] * CHR_SIZE;
-                ChrOffsets[1] = BankRegisters[3] * CHR_SIZE;
-                ChrOffsets[2] = BankRegisters[4] * CHR_SIZE;
-                ChrOffsets[3] = BankRegisters[5] * CHR_SIZE;
-                ChrOffsets[4] = (BankRegisters[0] & 0b11111110) * CHR_SIZE;
-                ChrOffsets[5] = (BankRegisters[0] & 0b11111110) * CHR_SIZE + CHR_SIZE;
-                ChrOffsets[6] = (BankRegisters[1] & 0b11111110) * CHR_SIZE;
-                ChrOffsets[7] = (BankRegisters[1] & 0b11111110) * CHR_SIZE + CHR_SIZE;
+                ChrOffsets[0] = BankRegisters[2];
+                ChrOffsets[1] = BankRegisters[3];
+                ChrOffsets[2] = BankRegisters[4];
+                ChrOffsets[3] = BankRegisters[5];
+
+                ChrOffsets[4] = BankRegisters[0] & ~1;
+                ChrOffsets[5] = BankRegisters[0] | 1;
+
+                ChrOffsets[6] = BankRegisters[1] & ~1;
+                ChrOffsets[7] = BankRegisters[1] | 1;
             } else {
-                ChrOffsets[0] = (BankRegisters[0] & 0b11111110) * CHR_SIZE;
-                ChrOffsets[1] = (BankRegisters[0] & 0b11111110) * CHR_SIZE + CHR_SIZE;
-                ChrOffsets[2] = (BankRegisters[1] & 0b11111110) * CHR_SIZE;
-                ChrOffsets[3] = (BankRegisters[1] & 0b11111110) * CHR_SIZE + CHR_SIZE;
-                ChrOffsets[4] = BankRegisters[2] * CHR_SIZE;
-                ChrOffsets[5] = BankRegisters[3] * CHR_SIZE;
-                ChrOffsets[6] = BankRegisters[4] * CHR_SIZE;
-                ChrOffsets[7] = BankRegisters[5] * CHR_SIZE;
+                ChrOffsets[0] = BankRegisters[0] & ~1;
+                ChrOffsets[1] = BankRegisters[0] | 1;
+
+                ChrOffsets[2] = BankRegisters[1] & ~1;
+                ChrOffsets[3] = BankRegisters[1] | 1;
+
+                ChrOffsets[4] = BankRegisters[2];
+                ChrOffsets[5] = BankRegisters[3];
+                ChrOffsets[6] = BankRegisters[4];
+                ChrOffsets[7] = BankRegisters[5];
+            }
+
+            for (var i = 0; i < ChrOffsets.Length; i++) {
+                ChrOffsets[i] *= CHR_SIZE;
+                ChrOffsets[i] %= ChrRom.Length;
+            }
+            for (var i = 0; i < PrgOffsets.Length; i++) {
+                PrgOffsets[i] *= PRG_SIZE;
+                PrgOffsets[i] %= PrgRom.Length;
             }
         }
 

@@ -135,6 +135,10 @@ namespace NesEmu.Rom {
             }
             int chrRomStart = prgRomStart + prgRomSize;
 
+            if (PrgRam == null) {
+                PrgRam = new byte[0];
+            }
+
             // Fills PRG with random data, which some games need to seed rng
             var rnd = new Random(Guid.NewGuid().GetHashCode());
             unsafe {
