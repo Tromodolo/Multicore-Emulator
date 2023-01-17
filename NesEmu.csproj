@@ -1,10 +1,11 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net7.0</TargetFramework>
     <Configurations>Debug;Release;Nestest</Configurations>
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+    <Platforms>AnyCPU;x64</Platforms>
   </PropertyGroup>
 
   <ItemGroup>
@@ -45,6 +46,10 @@
 
   <ItemGroup>
     <Folder Include="Mapper\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Ryujinx.SDL2-CS" Version="2.0.14" />
   </ItemGroup>
 
 </Project>
