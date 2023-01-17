@@ -637,7 +637,12 @@ namespace NesEmu.PPU {
                     V_Loopy.CoarseX = 0;
 
                     // Flip the X bit
-                    V_Loopy.NametableX = (byte)(~V_Loopy.NametableX);
+                    if (V_Loopy.NametableX == 0) {
+                        V_Loopy.NametableX = 1;
+                    } else {
+                        V_Loopy.NametableX = 0;
+                    }
+                    //V_Loopy.NametableX = (byte)(~V_Loopy.NametableX);
                 } else {
                     V_Loopy.CoarseX++;
                 }
@@ -654,7 +659,11 @@ namespace NesEmu.PPU {
                     if (V_Loopy.CoarseY == 29) {
                         V_Loopy.CoarseY = 0;
                         // Flip the Y bit
-                        V_Loopy.NametableY = (byte)~V_Loopy.NametableY;
+                        if (V_Loopy.NametableY == 0) {
+                            V_Loopy.NametableY = 1;
+                        } else {
+                            V_Loopy.NametableY = 0;
+                        }
                     } else if (V_Loopy.CoarseY == 31) {
                         V_Loopy.CoarseY = 0;
                     } else {
