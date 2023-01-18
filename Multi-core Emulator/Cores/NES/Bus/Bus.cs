@@ -1,4 +1,4 @@
-﻿using BizHawk.Emulation.Common;
+﻿using MultiCoreEmulator.Utility;
 using NesEmu.CPU;
 using NesEmu.Mapper;
 using NesEmu.PPU;
@@ -13,7 +13,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using static SDL2.SDL;
 
-namespace NesEmu.Bus {
+namespace NesEmu.Bus
+{
     //  _______________ $10000  _______________
     // | PRG-ROM       |       |               |
     // | Upper Bank    |       |               |
