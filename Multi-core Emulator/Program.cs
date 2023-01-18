@@ -217,7 +217,7 @@ public static class Program {
     }
 
     // Key/button events used for global functions such as savestates or framecap
-    public static void HandleKeyDown(IEmulatorCore core, SDL_KeyboardEvent keyboardEvent) {
+    private static void HandleKeyDown(IEmulatorCore core, SDL_KeyboardEvent keyboardEvent) {
         switch (keyboardEvent.keysym.sym) {
             case SDL_Keycode.SDLK_F1:
                 HandleSaveState(core, 1);
@@ -255,7 +255,7 @@ public static class Program {
         core.HandleKeyDown(keyboardEvent);
     }
 
-    public static void HandleKeyUp(IEmulatorCore core, SDL_KeyboardEvent keyboardEvent) {
+    private static void HandleKeyUp(IEmulatorCore core, SDL_KeyboardEvent keyboardEvent) {
         switch (keyboardEvent.keysym.sym) {
             case SDL_Keycode.SDLK_TAB:
                 IsFrameCap = true;
@@ -272,7 +272,7 @@ public static class Program {
         core.HandleKeyUp(keyboardEvent);
     }
 
-    public static void HandleButtonDown(IEmulatorCore core, SDL_GameControllerButton button) {
+    private static void HandleButtonDown(IEmulatorCore core, SDL_GameControllerButton button) {
         switch (button) {
             case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
                 IsFrameCap = false;
@@ -286,7 +286,7 @@ public static class Program {
         core.HandleButtonDown(button);
     }
 
-    public static void HandleButtonUp(IEmulatorCore core, SDL_GameControllerButton button) {
+    private static void HandleButtonUp(IEmulatorCore core, SDL_GameControllerButton button) {
         switch (button) {
             case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
                 IsFrameCap = true;
@@ -297,7 +297,7 @@ public static class Program {
         core.HandleButtonUp(button);
     }
 
-    public static IEmulatorCore GetApplicableEmulatorCore(string fileName) {
+    private static IEmulatorCore GetApplicableEmulatorCore(string fileName) {
         if (fileName.EndsWith(".nez") || fileName.EndsWith(".nes")) {
             return new Cores.NES.Core();
         }
