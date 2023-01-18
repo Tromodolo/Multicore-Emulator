@@ -6,7 +6,7 @@ using NesEmu.Rom;
 using static SDL2.SDL;
 
 namespace MultiCoreEmulator.Cores.NES {
-    internal class Core : IEmulatorCore {
+    internal class Core : EmulatorCoreBase {
         PPU PPU;
         Bus Bus;
         APU APU;
@@ -17,43 +17,13 @@ namespace MultiCoreEmulator.Cores.NES {
 
         ulong CurrentFrame = 0;
 
-        nint Texture;
-        nint Window;
-        nint Renderer;
-
         public Core() {}
 
-        public nint InitializeWindow() {
-            // Create a new window given a title, size, and passes it a flag indicating it should be shown.
-            Window = SDL_CreateWindow("Nes", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 256 * 3, 240 * 3, SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN);
-
-            if (Window == nint.Zero) {
-                Console.WriteLine($"There was an issue creating the window. {SDL_GetError()}");
-                return nint.Zero;
-            }
-
-            // Creates a new SDL hardware renderer using the default graphics device with VSYNC enabled.
-            nint renderer = SDL_CreateRenderer(Window, -1, SDL_RendererFlags.SDL_RENDERER_ACCELERATED);
-
-            if (renderer == nint.Zero) {
-                Console.WriteLine($"There was an issue creating the renderer. {SDL_GetError()}");
-                return nint.Zero;
-            }
-
-            Texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGB888, (int)SDL_TextureAccess.SDL_TEXTUREACCESS_STREAMING, 256, 240);
-            Renderer = renderer;
-
-            return Window;
+        public override nint InitializeWindow(string windowName = "NES", int windowWidth = 256, int windowHeight = 240) {
+            return base.InitializeWindow(windowName, windowWidth, windowHeight);
         }
 
-        public void CloseWindow() {
-            // Clean up the resources that were created.
-            SDL_DestroyRenderer(Renderer);
-            SDL_DestroyWindow(Window);
-            SDL_Quit();
-        }
-
-        public void LoadBytes(string fileName, byte[] bytes) {
+        public override void LoadBytes(string fileName, byte[] bytes) {
             var rom = new Rom(bytes, fileName);
 
             CPU = new NesCpu();
@@ -66,13 +36,13 @@ namespace MultiCoreEmulator.Cores.NES {
             PPU.RegisterBus(Bus);
         }
 
-        public void Reset() {
+        public override void Reset() {
             APU.NESHardReset();
             CPU.Reset();
             Bus.Reset();
         }
 
-        public bool Clock() {
+        public override bool Clock() {
             Bus.Clock();
             if (!Bus.GetDrawFrame())
                 return false;
@@ -82,7 +52,7 @@ namespace MultiCoreEmulator.Cores.NES {
             return true;
         }
 
-        public short[] GetFrameSamples(out int numAvailable) {
+        public override short[] GetFrameSamples(out int numAvailable) {
             uint count = APU.sampleclock;
             Bus.Blip.EndFrame(count);
             APU.sampleclock = 0;
@@ -99,7 +69,7 @@ namespace MultiCoreEmulator.Cores.NES {
             return samples;
         }
 
-        public void SaveState(int slot) {
+        public override void SaveState(int slot) {
             string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
@@ -113,7 +83,7 @@ namespace MultiCoreEmulator.Cores.NES {
             fileStream.Close();
         }
 
-        public void LoadState(int slot) {
+        public override void LoadState(int slot) {
             string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
@@ -168,7 +138,7 @@ namespace MultiCoreEmulator.Cores.NES {
             return output;
         }
 
-        public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {
+        public override void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {
             byte currentKeys = Bus.Controller1.GetAllButtons();
 
             switch (keyboardEvent.keysym.sym) {
@@ -206,7 +176,7 @@ namespace MultiCoreEmulator.Cores.NES {
             Bus.Controller1.Update(currentKeys);
         }
 
-        public void HandleKeyUp(SDL_KeyboardEvent keyboardEvent) {
+        public override void HandleKeyUp(SDL_KeyboardEvent keyboardEvent) {
             byte currentKeys = Bus.Controller1.GetAllButtons();
 
             switch (keyboardEvent.keysym.sym) {
@@ -241,7 +211,7 @@ namespace MultiCoreEmulator.Cores.NES {
             Bus.Controller1.Update(currentKeys);
         }
 
-        public void HandleButtonDown(SDL_GameControllerButton button) {
+        public override void HandleButtonDown(SDL_GameControllerButton button) {
             byte currentKeys = Bus.Controller1.GetAllButtons();
 
             switch (button) {
@@ -276,7 +246,7 @@ namespace MultiCoreEmulator.Cores.NES {
             Bus.Controller1.Update(currentKeys);
         }
 
-        public void HandleButtonUp(SDL_GameControllerButton button) {
+        public override void HandleButtonUp(SDL_GameControllerButton button) {
             byte currentKeys = Bus.Controller1.GetAllButtons();
 
             switch (button) {
