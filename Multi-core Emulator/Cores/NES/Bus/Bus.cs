@@ -63,11 +63,11 @@ namespace NesEmu.Bus
         int BlipBuffSize = 4096;
         int OldSample;
 
-        byte DmaPage;
-        byte DmaAddr;
-        byte DmaData;
-        bool DmaDummyRead;
-        bool DmaActive;
+        public byte DmaPage;
+        public byte DmaAddr;
+        public byte DmaData;
+        public bool DmaDummyRead;
+        public bool DmaActive;
 
         public bool APUIRQ;
         public bool DMCDmaActive;

@@ -6,7 +6,7 @@
     <RootNamespace>MultiCoreEmulator</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-	<PublishAot>true</PublishAot>
+	<!--<PublishAot>true</PublishAot>-->
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
   </PropertyGroup>
 

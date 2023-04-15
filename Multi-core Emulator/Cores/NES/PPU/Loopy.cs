@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace NesEmu.PPU {
-    internal struct Loopy {
+    public struct Loopy {
         public byte CoarseX;
         public byte CoarseY;
         public byte NametableX;

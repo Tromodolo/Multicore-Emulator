@@ -15,33 +15,46 @@ namespace NesEmu.PPU {
         public byte[] PaletteTable;
         public byte[] Vram;
         public byte[] OamData;
+        public byte OamAddr;
         
-        byte OamAddr;
-        Bus.Bus Bus;
+        public int DotsDrawn;
+        public int CurrentScanline;
+        public ulong TotalCycles;
 
-        int DotsDrawn;
-        int CurrentScanline;
-        ulong TotalCycles;
+        public byte InternalDataBuffer;
+        public MaskRegister Mask;
+        public ControlRegister Ctrl;
+        public StatusRegister Status;
 
-        byte InternalDataBuffer;
-        MaskRegister Mask;
-        ControlRegister Ctrl;
-        StatusRegister Status;
-
-        bool NmiInterrupt;
-
-        uint[] FrameBuffer = new uint[256 * 240];
+        public bool NmiInterrupt;
 
         // Handling these is an absolute nightmare
         // https://wiki.nesdev.org/w/index.php/PPU_scrolling
         // https://www.youtube.com/watch?v=-THeUXqR3zY
         // https://github.com/OneLoneCoder/olcNES/blob/master/Part%20%234%20-%20PPU%20Backgrounds/olc2C02.cpp
-        Loopy T_Loopy;
-        Loopy V_Loopy;
-        byte fineX;
+        public Loopy T_Loopy;
+        public Loopy V_Loopy;
+        public byte fineX;
         //// Used when setting/updating T and V
-        bool WriteLatch;
+        public bool WriteLatch;
 
+        public struct SpriteEntry {
+            public SpriteEntry() { }
+            public byte YPosition = 0;
+            public byte XPosition = 0;
+            public byte TileId = 0;
+            public byte Attribute = 0;
+            public bool SpriteZero = false;
+        }
+        public SpriteEntry[] EvaluatedSprites = new SpriteEntry[8];
+        public byte SpriteCount;
+
+        public bool SpriteZeroPossible;
+        public bool SpriteZeroRendered;
+
+        Bus.Bus Bus;
+        uint[] FrameBuffer = new uint[256 * 240];
+        public uint[] DebugBuffer = new uint[256 * 240];
         byte BgNextTileId,
              BgNextTileAttribute,
              BgNextTileLsb,
@@ -54,20 +67,6 @@ namespace NesEmu.PPU {
 
         byte[] SpriteShifterPatternLo = new byte[8];
         byte[] SpriteShifterPatternHi = new byte[8];
-
-        struct SpriteEntry {
-            public SpriteEntry() { }
-            public byte YPosition = 0;
-            public byte XPosition = 0;
-            public byte TileId = 0;
-            public byte Attribute = 0;
-            public bool SpriteZero = false;
-        }
-        SpriteEntry[] EvaluatedSprites = new SpriteEntry[8];
-        byte SpriteCount;
-
-        bool SpriteZeroPossible;
-        bool SpriteZeroRendered;
 
         public PPU(byte[] chrRom) {
             ChrRom = chrRom;
@@ -165,7 +164,7 @@ namespace NesEmu.PPU {
         // Vertical:
         //   [ A1 ] [ B1 ]
         //   [ a2 ] [ b2 ]
-        ushort MirrorVramAddr(ushort addr) {
+        public ushort MirrorVramAddr(ushort addr) {
             // Mirrors values like 0x3000-0x3eff down to 0x2000-0x2eff
             int mirroredAddr = addr & 0b10111111111111;
             // Get absolute value within vram
@@ -231,7 +230,7 @@ namespace NesEmu.PPU {
             return vector;
         }
 
-        byte GetChrRom(int addr) {
+        public byte GetChrRom(int addr) {
             byte mapperValue = Bus.Mapper.PPURead((ushort)addr);
             if (Bus.Mapper.DidMap()) {
                 return mapperValue;
@@ -948,6 +947,11 @@ namespace NesEmu.PPU {
             }
 
             FrameBuffer[
+                x +
+                (y * 256)
+            ] = (uint)((color.r << 16) | (color.g << 8 | (color.b << 0)));
+
+            DebugBuffer[
                 x +
                 (y * 256)
             ] = (uint)((color.r << 16) | (color.g << 8 | (color.b << 0)));

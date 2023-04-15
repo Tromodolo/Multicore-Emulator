@@ -1,4 +1,5 @@
-﻿using static SDL2.SDL;
+﻿using MultiCoreEmulator.Utility.SDL;
+using static SDL2.SDL;
 
 namespace MultiCoreEmulator.Cores {
     public abstract class EmulatorCoreBase {
@@ -48,5 +49,7 @@ namespace MultiCoreEmulator.Cores {
 
         public abstract void HandleButtonDown(SDL_GameControllerButton button);
         public abstract void HandleButtonUp(SDL_GameControllerButton button);
+
+        public abstract void RenderDebugView(DebugWindow debugWindow);
     }
 }
