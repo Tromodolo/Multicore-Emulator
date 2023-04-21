@@ -8,6 +8,9 @@
     <Nullable>enable</Nullable>
 	<!--<PublishAot>true</PublishAot>-->
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+
+    <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+    <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
   </PropertyGroup>
 
   <ItemGroup>
