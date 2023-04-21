@@ -176,18 +176,18 @@ public static class Program {
         });
 
 #if DEBUG
-        var debugWindow = new DebugWindow();
-        ThreadPool.QueueUserWorkItem((callback) => {
-
-            SDL_GetWindowPosition(CoreWindow, out int coreX, out int coreY);
-            SDL_GetWindowSize(CoreWindow, out int coreWidth, out int _);
-            SDL_SetWindowPosition(debugWindow.Window, coreX + coreWidth, coreY);
-
-            while (IsRunning) {
-                emulatorCore.RenderDebugView(debugWindow);
-                Thread.Sleep(50);
-            }
-        });
+        // var debugWindow = new DebugWindow();
+        // ThreadPool.QueueUserWorkItem((callback) => {
+        //
+        //     SDL_GetWindowPosition(CoreWindow, out int coreX, out int coreY);
+        //     SDL_GetWindowSize(CoreWindow, out int coreWidth, out int _);
+        //     SDL_SetWindowPosition(debugWindow.Window, coreX + coreWidth, coreY);
+        //
+        //     while (IsRunning) {
+        //         emulatorCore.RenderDebugView(debugWindow);
+        //         Thread.Sleep(50);
+        //     }
+        // });
 #endif
 
         while (IsRunning) {
@@ -213,9 +213,9 @@ public static class Program {
                         break;
                     case SDL_EventType.SDL_WINDOWEVENT:
 #if DEBUG
-                        SDL_GetWindowPosition(CoreWindow, out int coreX, out int coreY);
-                        SDL_GetWindowSize(CoreWindow, out int coreWidth, out int _);
-                        SDL_SetWindowPosition(debugWindow.Window, coreX + coreWidth, coreY);
+                        // SDL_GetWindowPosition(CoreWindow, out int coreX, out int coreY);
+                        // SDL_GetWindowSize(CoreWindow, out int coreWidth, out int _);
+                        // SDL_SetWindowPosition(debugWindow.Window, coreX + coreWidth, coreY);
 #endif
                         break;
                     default:
@@ -225,7 +225,7 @@ public static class Program {
         }
 
 #if DEBUG
-        debugWindow.Close();
+        // debugWindow.Close();
 #endif
         emulatorCore.CloseWindow();
         SDL_CloseAudioDevice((uint)AudioDeviceId);
