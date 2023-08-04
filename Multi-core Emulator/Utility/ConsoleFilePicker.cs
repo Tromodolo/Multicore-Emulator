@@ -17,6 +17,9 @@ internal class ConsoleFilePicker {
 	internal ConsoleFilePicker(string[] fileTypes, string startDirectory) {
 		allowedFileTypes = fileTypes;
 		currentDirectory = startDirectory;
+		if (!currentDirectory.EndsWith(Path.DirectorySeparatorChar)) {
+			currentDirectory += Path.DirectorySeparatorChar;
+		}
 		allOptions = new List<string>();
 		options = new List<string>();
 		selectedFile = null;

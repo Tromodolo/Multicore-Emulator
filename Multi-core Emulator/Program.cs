@@ -20,8 +20,8 @@ public static class Program {
     public static void Main(string[] args) {
         var picker = new ConsoleFilePicker(new[] {
             ".nes", ".nez", ".gbc", ".gb"
-        }, ".");
-        string fileName = picker.SelectFile();
+        }, Directory.GetCurrentDirectory());
+        string fileName = picker.OpenSelector();
 
         byte[] fileByteArr;
         try {
