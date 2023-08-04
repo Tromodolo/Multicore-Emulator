@@ -1,186 +1,164 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace MultiCoreEmulator.Utility; 
 
-namespace MultiCoreEmulator.Utility
-{
-    internal class ConsoleFilePicker
-    {
-        string[] FilteredFileTypes;
-        string CurrentDirectory;
+internal class ConsoleFilePicker {
+	string currentDirectory;
+	string[] allowedFileTypes;
 
-        List<string> CurrentFiles;
-        string Selected;
-        int CurrentIndex;
-        int FileOffset;
-        int ConsoleHeight;
-        bool Redraw;
+	string? selectedFile;
+	string filter;
 
-        internal ConsoleFilePicker(string[] fileTypes, string startDirectory)
-        {
-            FilteredFileTypes = fileTypes;
-            CurrentDirectory = startDirectory;
+	List<string> allOptions;
+	List<string> options;
+	
+	int optionIndexOffset;
+	int currIndex;
+	int currentRenderHeight;
+	
+	internal ConsoleFilePicker(string[] fileTypes, string startDirectory) {
+		allowedFileTypes = fileTypes;
+		currentDirectory = startDirectory;
+		allOptions = new List<string>();
+		options = new List<string>();
+		selectedFile = null;
+		filter = "";
+	}
 
-            Selected = null;
-            ConsoleHeight = Console.WindowHeight;
-            Redraw = true;
-        }
+	internal string OpenSelector() {
+		Console.Clear();
 
-        internal string SelectFile()
-        {
-            PopulateDirs();
+		currIndex = 0;
+		optionIndexOffset = 0;
+		
+		ReadCurrentDirectory();
+		RenderView();
 
-            while (Selected == null)
-            {
-                Render();
-                var key = Console.ReadKey();
-                switch (key.Key)
-                {
-                    case ConsoleKey.UpArrow:
-                        if (CurrentIndex == FileOffset && FileOffset > 0)
-                        {
-                            CurrentIndex--;
-                            FileOffset--;
-                            Redraw = true;
-                        }
-                        else if (CurrentIndex > 0)
-                        {
-                            CurrentIndex--;
-                        }
-                        break;
-                    case ConsoleKey.DownArrow:
-                        if (CurrentIndex + 1 == FileOffset - 1 + Console.WindowHeight && CurrentIndex < CurrentFiles.Count - 1)
-                        {
-                            CurrentIndex++;
-                            FileOffset++;
-                            Redraw = true;
-                        }
-                        else if (CurrentIndex < Console.WindowHeight && CurrentIndex < CurrentFiles.Count - 1)
-                        {
-                            CurrentIndex++;
-                        }
-                        break;
-                    case ConsoleKey.LeftArrow:
-                        CurrentDirectory = Path.Combine(CurrentDirectory, @"..");
-                        CurrentDirectory = Path.GetFullPath(CurrentDirectory);
+		while (selectedFile == null) {
+			ReadInput();
+			FilterOptions();
+			RenderView();
+		}
+		
+		return selectedFile;
+	}
 
-                        PopulateDirs();
+	private void ReadInput() {
+		var key = Console.ReadKey(true);
+		switch (key.Key) {
+			case ConsoleKey.UpArrow:
+				if (currIndex == 0 && optionIndexOffset > 0) {
+					optionIndexOffset--;
+				} 
+				if (currIndex > 0) {
+					currIndex--;
+				}
+				break;
+			case ConsoleKey.DownArrow:
+				if (currIndex == currentRenderHeight - 1 && optionIndexOffset < options.Count - currentRenderHeight) {
+					optionIndexOffset++;
+				}
+				if (currIndex < currentRenderHeight - 1 && currIndex < options.Count - 1) {
+					currIndex++;
+				} 
+				break;
+			case ConsoleKey.RightArrow:
+			case ConsoleKey.Enter:
+				// Can only happen when searching
+				if (options.Count == 0) {
+					break;
+				}
+				
+				var pressed = options[currIndex + optionIndexOffset];
+				pressed = pressed.Trim();
+				if (pressed.EndsWith(Path.DirectorySeparatorChar)) {
+					currentDirectory = Path.GetFullPath(
+						Path.Join(currentDirectory, pressed)
+					);
+					
+					Console.Clear();
+					ReadCurrentDirectory();
+					optionIndexOffset = 0;
+					currIndex = 0;
+				} else {
+					selectedFile = Path.GetFullPath(
+						Path.Join(currentDirectory, pressed)
+					);
+				}
+				break;
+			case ConsoleKey.Backspace:
+				if (filter.Length > 0) {
+					filter = filter.Remove(filter.Length - 1);
+					optionIndexOffset = 0;
+					currIndex = 0;
+					Console.Clear();
+				}
+				break;
+			default:
+				if (char.IsLetterOrDigit(key.KeyChar) || key.KeyChar.Equals('.') || 
+				    key.KeyChar.Equals(' ') || key.KeyChar.Equals('_')) {
+					filter += key.KeyChar;
+					optionIndexOffset = 0;
+					currIndex = 0;
+					Console.Clear();
+				}
+				break;
+		}
+	}
 
-                        CurrentIndex = 0;
-                        Redraw = true;
-                        break;
-                    case ConsoleKey.Enter:
-                    case ConsoleKey.RightArrow:
-                        string selection = CurrentFiles[CurrentIndex];
-                        if (selection == $@"{CurrentDirectory}\..")
-                        {
-                            CurrentDirectory = Path.Combine(CurrentDirectory, @"..");
-                            CurrentDirectory = Path.GetFullPath(CurrentDirectory);
+	private void FilterOptions() {
+		if (filter.Length > 0) {
+			options = allOptions
+				.Where(x => x.Contains(filter))
+				.ToList();
+		} else {
+			options = allOptions.ToList();
+		}
+	}
+	
+	private void RenderView() {
+		Console.CursorLeft = 0;
+		Console.CursorTop = 0;
+		
+		Console.Write("Current Directory: {0}\n", currentDirectory);
+		Console.Write("Filter: {0}\n", filter.PadRight(Console.WindowWidth - 100));
+		Console.CursorTop += 1;
 
-                            PopulateDirs();
+		currentRenderHeight = Console.WindowHeight - Console.CursorTop - 1;
+		
+		for (var i = 0; i < options.Count && i < currentRenderHeight; i++) {
+			if (i == currIndex) {
+				Console.Write("*");
+			} else {
+				Console.Write(' ');
+			}
+			
+			Console.Write("{0}\n", options[i + optionIndexOffset]);
+		}
+	}
 
-                            Redraw = true;
-                        }
-                        else if (selection.EndsWith(@"\"))
-                        {
-                            CurrentDirectory = Path.GetFullPath(selection);
-                            if (CurrentDirectory.EndsWith(@"\"))
-                            {
-                                CurrentDirectory = CurrentDirectory.Substring(0, CurrentDirectory.Length - 1);
-                            }
+	private void ReadCurrentDirectory() {
+		allOptions.Clear();
 
-                            PopulateDirs();
+		if (Directory.GetParent(currentDirectory) != null) {
+			var back = ".." + Path.DirectorySeparatorChar;
+			allOptions.Add(back.PadRight(Console.WindowWidth - 5));
+		}
+		
+		allOptions.AddRange(
+			Directory.EnumerateDirectories(currentDirectory)
+				.Select(x =>
+					(x.Replace(currentDirectory, "") + Path.DirectorySeparatorChar)
+					.PadRight(Console.WindowWidth - 5)
+				)
+		);
+		allOptions.AddRange(
+			Directory.EnumerateFiles(currentDirectory)
+				.Select(x =>
+					x.Replace(currentDirectory, "")
+						.PadRight(Console.WindowWidth - 5)
+				)
+				.Where(x => allowedFileTypes.Length == 0 || allowedFileTypes.Any(x.Trim().EndsWith))
+		);
 
-                            CurrentIndex = 0;
-                            Redraw = true;
-                        }
-                        else
-                        {
-                            Selected = selection;
-                        }
-                        break;
-                    default:
-                        break;
-                }
-            }
-
-            return Selected;
-        }
-
-        private void PopulateDirs()
-        {
-            var files = Directory.GetFiles(CurrentDirectory).ToList();
-            var filteredFiles = new List<string>();
-
-            foreach (string file in files)
-            {
-                foreach (string ft in FilteredFileTypes)
-                {
-                    if (file.EndsWith(ft))
-                    {
-                        filteredFiles.Add(file);
-                    }
-                }
-            }
-
-            CurrentFiles = filteredFiles;
-
-            CurrentFiles.Insert(0, $@"{CurrentDirectory}\..");
-            string[] folders = Directory.GetDirectories(CurrentDirectory);
-            var folderIndex = 1;
-            foreach (string folder in folders)
-            {
-                CurrentFiles.Insert(folderIndex, $@"{folder}\");
-                folderIndex++;
-            }
-        }
-
-        private void Render()
-        {
-            if (Redraw || ConsoleHeight != Console.WindowHeight)
-            {
-                Console.Clear();
-                ConsoleHeight = Console.WindowHeight;
-                Redraw = false;
-            }
-
-            Console.CursorLeft = 0;
-            Console.CursorTop = 0;
-            Console.SetBufferSize(Console.WindowWidth, Console.WindowHeight);
-
-            var index = 0;
-            var rendered = 1;
-            var list = "";
-            foreach (string file in CurrentFiles)
-            {
-                if (index >= FileOffset && rendered < Console.WindowHeight)
-                {
-                    if (index == CurrentIndex)
-                    {
-                        list += "> ";
-                    }
-                    else
-                    {
-                        list += "- ";
-                    }
-
-                    list += file;
-                    rendered++;
-                    list += "\n";
-                }
-
-                index++;
-
-                if (rendered >= Console.WindowHeight)
-                {
-                    break;
-                }
-            }
-
-            Console.Write(list);
-        }
-    }
+		options = allOptions.ToList();
+	}
 }
