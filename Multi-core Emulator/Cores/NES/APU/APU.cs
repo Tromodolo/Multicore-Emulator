@@ -667,7 +667,7 @@ namespace BizHawk.NES {
 							// when called due to empty bueffer while DMC running, there is no delay
 
 							nes.Ready = false;
-							nes.Bus.DMCDmaActive = true;
+							nes.Bus.DMCDMAActive = true;
 
 							if (fill_glitch_2) {
 								// this will only run for one cycle and not actually run a DMA
@@ -828,7 +828,7 @@ namespace BizHawk.NES {
 
 			public void Fetch() {
 				if (sample_length != 0) {
-					sample_buffer = apu.nes.MemRead((ushort)sample_address);
+					sample_buffer = apu.nes.Bus.MemRead((ushort)sample_address);
 					sample_buffer_filled = true;
 					sample_address = (ushort)(sample_address + 1);
 

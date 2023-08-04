@@ -65,7 +65,7 @@ namespace NesEmu.CPU {
 #if NESTEST
             ProgramCounter = 0xC000;
 #else
-            ProgramCounter = MemReadShort(0xFFFC);
+            ProgramCounter = Bus.MemReadShort(0xFFFC);
 #endif
             Running = true;
             Ready = true;
@@ -82,7 +82,7 @@ namespace NesEmu.CPU {
                 ShouldLog = false;
             }
 
-            var op = OpCodeList.OpCodes[MemRead(ProgramCounter)];
+            var op = OpCodeList.OpCodes[Bus.MemRead(ProgramCounter)];
             NumCyclesExecuted = 0;
             HandleInstruction(op);
             return NumCyclesExecuted;

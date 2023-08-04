@@ -12,7 +12,6 @@ namespace NesEmu.Mapper {
 
         byte[] PrgRom;
         bool Is256;
-        bool Handled;
 
         public void RegisterRom(Rom.Rom rom) {
             CurrentRom = rom;
@@ -21,12 +20,8 @@ namespace NesEmu.Mapper {
             Is256 = PrgRom.Length > 0x4000;
         }
 
-        public bool DidMap() {
-            return Handled;
-        }
-
-        public byte CpuRead(ushort address) {
-            Handled = false;
+        public byte CpuRead(ushort address, out bool handled) {
+            handled = false;
 
             if (address >= 0x8000 && address <= 0xffff) {
                 unsafe {
@@ -41,7 +36,7 @@ namespace NesEmu.Mapper {
                             }
                         }
 
-                        Handled = true;
+                        handled = true;
                         return *(ptr + address);
                     }
                 }
@@ -49,8 +44,8 @@ namespace NesEmu.Mapper {
             return 0;
         }
 
-        public void CpuWrite(ushort address, byte value) {
-            Handled = false;
+        public void CpuWrite(ushort address, byte value, out bool handled) {
+            handled = false;
 
             if (address >= 0x8000 && address <= 0xffff) {
                 unsafe {
@@ -65,20 +60,20 @@ namespace NesEmu.Mapper {
                             }
                         }
 
-                        Handled = true;
+                        handled = true;
                         *(ptr + address) = value;
                     }
                 }
             }
         }
 
-        public byte PPURead(ushort address) {
-            Handled = false;
+        public byte PPURead(ushort address, out bool handled) {
+            handled = false;
             return 0;
         }
 
-        public void PPUWrite(ushort address, byte value) {
-            Handled = false;
+        public void PPUWrite(ushort address, byte value, out bool handled) {
+            handled = false;
         }
 
         public ScreenMirroring GetMirroring() {

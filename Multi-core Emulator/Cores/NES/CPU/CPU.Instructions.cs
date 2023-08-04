@@ -20,61 +20,61 @@ namespace NesEmu.CPU {
                 case AddressingMode.Accumulator: return (0, false);
                 case AddressingMode.Immediate: return (address, false);
                 case AddressingMode.Relative: {
-                    ushort jump = MemRead(address);
+                    ushort jump = Bus.MemRead(address);
                     address++;
                     ushort jumpAddr = (ushort)(address + jump);
                     return (jumpAddr, false);
                 }
-                case AddressingMode.ZeroPage: return (MemRead(address), false);
+                case AddressingMode.ZeroPage: return (Bus.MemRead(address), false);
                 case AddressingMode.ZeroPageX: {
-                    byte pos = MemRead(address);
+                    byte pos = Bus.MemRead(address);
                     pos += RegisterX;
                     return (pos, false);
                 }
                 case AddressingMode.ZeroPageY: {
-                    byte pos = MemRead(address);
+                    byte pos = Bus.MemRead(address);
                     pos += RegisterY;
                     return (pos, false);
                 }
-                case AddressingMode.Absolute: return (MemReadShort(address), false);
+                case AddressingMode.Absolute: return (Bus.MemReadShort(address), false);
                 case AddressingMode.AbsoluteX: {
-                    ushort baseAddr = MemReadShort(address);
+                    ushort baseAddr = Bus.MemReadShort(address);
                     ushort addr = (ushort)(baseAddr + RegisterX);
                     return (addr, IsPageCross(baseAddr, addr));
                 }
                 case AddressingMode.AbsoluteY: {
-                    ushort baseAddr = MemReadShort(address);
+                    ushort baseAddr = Bus.MemReadShort(address);
                     ushort addr = (ushort)(baseAddr + RegisterY);
                     return (addr, IsPageCross(baseAddr, addr));
                 }
                 case AddressingMode.Indirect: {
-                    ushort addr = MemReadShort(address);
+                    ushort addr = Bus.MemReadShort(address);
                     // 6502 bug mode with with page boundary:
                     //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
                     // the result of JMP ($30FF) will be a transfer of control to $4080 rather than $5080 as you intended
                     // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
                     if ((addr & 0x00ff) == 0x00ff) {
-                        byte lo = MemRead(addr);
-                        byte hi = MemRead((ushort)(addr & 0xff00));
+                        byte lo = Bus.MemRead(addr);
+                        byte hi = Bus.MemRead((ushort)(addr & 0xff00));
                         return ((ushort)((hi << 8) | lo), false);
                     } else {
-                        return (MemReadShort(addr), false);
+                        return (Bus.MemReadShort(addr), false);
                     }
                 }
                 case AddressingMode.IndirectX: {
-                        byte baseAddr = MemRead(address);
+                        byte baseAddr = Bus.MemRead(address);
                         byte pointer = (byte)(baseAddr + RegisterX);
-                        byte lo = MemRead(pointer);
+                        byte lo = Bus.MemRead(pointer);
                         pointer++;
-                    byte hi = MemRead(pointer);
+                    byte hi = Bus.MemRead(pointer);
                     return ((ushort)((hi << 8) | lo), false);
                 }
                 case AddressingMode.IndirectY: {
-                    byte baseAddr = MemRead(address);
+                    byte baseAddr = Bus.MemRead(address);
 
-                    byte lo = MemRead(baseAddr);
+                    byte lo = Bus.MemRead(baseAddr);
                     baseAddr++;
-                    byte hi = MemRead(baseAddr);
+                    byte hi = Bus.MemRead(baseAddr);
 
                     ushort derefBase = ((ushort)((ushort)(hi << 8) | lo));
                     ushort deref = (ushort)(derefBase + RegisterY);
@@ -179,14 +179,14 @@ namespace NesEmu.CPU {
 
             switch (interrupt) {
                 case InterruptType.NMI:
-                    ProgramCounter = MemReadShort(0xfffa);
+                    ProgramCounter = Bus.MemReadShort(0xfffa);
                     break;
                 case InterruptType.RESET:
-                    ProgramCounter = MemReadShort(0xfffc);
+                    ProgramCounter = Bus.MemReadShort(0xfffc);
                     break;
                 case InterruptType.IRQ:
                 case InterruptType.BRK:
-                    ProgramCounter = MemReadShort(0xfffe);
+                    ProgramCounter = Bus.MemReadShort(0xfffe);
                     break;
                 default:
                     throw new InvalidOperationException($"The interruption {interrupt} does not exist.");
@@ -469,7 +469,7 @@ namespace NesEmu.CPU {
          */
         void ADC(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             AddToAcc(value);
 
             if (pageCross) {
@@ -479,7 +479,7 @@ namespace NesEmu.CPU {
 
         void AND(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             Accumulator &= value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -490,7 +490,7 @@ namespace NesEmu.CPU {
 
         void ASL(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             if (value >> 7 == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -499,7 +499,7 @@ namespace NesEmu.CPU {
             }
 
             var newVal = (byte)(value << 1);
-            MemWrite(address, newVal);
+            Bus.MemWrite(address, newVal);
             UpdateZeroAndNegative(newVal);
         }
 
@@ -520,7 +520,7 @@ namespace NesEmu.CPU {
             
             NumCyclesExecuted += 1;
 
-            var jump = (sbyte)MemRead(ProgramCounter);
+            var jump = (sbyte)Bus.MemRead(ProgramCounter);
             var jumpAddr = (ushort)(ProgramCounter + jump + 1);
 
             if ((((ushort)(ProgramCounter + 1)) & 0xff00) != (jumpAddr & 0xff00)) {
@@ -531,7 +531,7 @@ namespace NesEmu.CPU {
 
         void BIT(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte mask = MemRead(address);
+            byte mask = Bus.MemRead(address);
 
             if ((mask & Accumulator) == 0) {
                 SetStatusFlag(Flags.Zero);
@@ -554,7 +554,7 @@ namespace NesEmu.CPU {
 
         void Compare(AddressingMode mode, byte value, bool pageCrossAvailable) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte memVal = MemRead(address);
+            byte memVal = Bus.MemRead(address);
             if (memVal <= value) {
                 SetStatusFlag(Flags.Carry);
             } else {
@@ -569,9 +569,9 @@ namespace NesEmu.CPU {
 
         void DEC(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             value--;
-            MemWrite(address, value);
+            Bus.MemWrite(address, value);
             UpdateZeroAndNegative(value);
         }
 
@@ -587,7 +587,7 @@ namespace NesEmu.CPU {
 
         void EOR(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             Accumulator ^= value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -598,9 +598,9 @@ namespace NesEmu.CPU {
 
         byte INC(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             value++;
-            MemWrite(address, value);
+            Bus.MemWrite(address, value);
             UpdateZeroAndNegative(value);
             return value;
         }
@@ -619,13 +619,13 @@ namespace NesEmu.CPU {
             if (mode == AddressingMode.Indirect) {
                 jmp_indirect();
             } else {
-                ushort address = MemReadShort(ProgramCounter);
+                ushort address = Bus.MemReadShort(ProgramCounter);
                 ProgramCounter = address;
             }
         }
 
         void jmp_indirect() {
-            ushort address = MemReadShort(ProgramCounter);
+            ushort address = Bus.MemReadShort(ProgramCounter);
             NumCyclesExecuted += 2;
             // 6502 bug mode with with page boundary:
             //  if address $3000 contains $40, $30FF contains $80, and $3100 contains $50,
@@ -633,24 +633,24 @@ namespace NesEmu.CPU {
             // i.e. the 6502 took the low byte of the address from $30FF and the high byte from $3000
             ushort indirectRef;
             if ((address & 0x00ff) == 0x00ff) {
-                byte loAddr = MemRead(address);
-                byte hiAddr = MemRead((ushort)(address & 0xff00));
+                byte loAddr = Bus.MemRead(address);
+                byte hiAddr = Bus.MemRead((ushort)(address & 0xff00));
                 indirectRef = (ushort)((hiAddr << 8) | loAddr);
             } else {
-                indirectRef = MemReadShort(address);
+                indirectRef = Bus.MemReadShort(address);
             }
             ProgramCounter = indirectRef;
         }
 
         void JSR() {
             StackPushShort((ushort)(ProgramCounter + 1));
-            ushort addr = MemReadShort(ProgramCounter);
+            ushort addr = Bus.MemReadShort(ProgramCounter);
             ProgramCounter = addr;
         }
 
         void LDA(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             Accumulator = value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -661,7 +661,7 @@ namespace NesEmu.CPU {
 
         void LDX(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             RegisterX = value;
             UpdateZeroAndNegative(RegisterX);
 
@@ -672,7 +672,7 @@ namespace NesEmu.CPU {
 
         void LDY(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             RegisterY = value;
             UpdateZeroAndNegative(RegisterY);
 
@@ -683,7 +683,7 @@ namespace NesEmu.CPU {
 
         void LSR(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             if ((value & 1) == 1) {
                 SetStatusFlag(Flags.Carry);
@@ -692,7 +692,7 @@ namespace NesEmu.CPU {
             }
 
             var newVal = (byte)(value >> 1);
-            MemWrite(address, newVal);
+            Bus.MemWrite(address, newVal);
             UpdateZeroAndNegative(newVal);
         }
 
@@ -709,7 +709,7 @@ namespace NesEmu.CPU {
 
         void ORA(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             Accumulator |= value;
             UpdateZeroAndNegative(Accumulator);
 
@@ -743,7 +743,7 @@ namespace NesEmu.CPU {
 
         void ROL(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             bool oldCarry = Status.HasFlag(Flags.Carry);
 
             if ((value >> 7) == 1) {
@@ -755,7 +755,7 @@ namespace NesEmu.CPU {
             if (oldCarry) {
                 value |= 1;
             }
-            MemWrite(address, value);
+            Bus.MemWrite(address, value);
             UpdateNegative(value);
 
         }
@@ -778,7 +778,7 @@ namespace NesEmu.CPU {
         }
         void ROR(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             bool oldCarry = Status.HasFlag(Flags.Carry);
 
             if ((value & 1) == 1) {
@@ -790,7 +790,7 @@ namespace NesEmu.CPU {
             if (oldCarry) {
                 value |= 0b10000000;
             }
-            MemWrite(address, value);
+            Bus.MemWrite(address, value);
             UpdateNegative(value);
 
         }
@@ -827,7 +827,7 @@ namespace NesEmu.CPU {
 
         void SBC(AddressingMode mode) {
             (ushort address, bool pageCross) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             AddToAcc((byte)(byte.MaxValue - value));
 
             if (pageCross) {
@@ -837,17 +837,17 @@ namespace NesEmu.CPU {
 
         void STA(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            MemWrite(address, Accumulator);
+            Bus.MemWrite(address, Accumulator);
         }
 
         void STX(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            MemWrite(address, RegisterX);
+            Bus.MemWrite(address, RegisterX);
         }
 
         void STY(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            MemWrite(address, RegisterY);
+            Bus.MemWrite(address, RegisterY);
         }
 
         void TAX() {
@@ -886,7 +886,7 @@ namespace NesEmu.CPU {
 
         void AAC(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator &= value;
             UpdateZeroAndNegative(value);
@@ -899,13 +899,13 @@ namespace NesEmu.CPU {
         void AAX(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
             var value = (byte)(RegisterX & Accumulator);
-            MemWrite(address, value);
+            Bus.MemWrite(address, value);
             //UpdateZeroAndNegative(value);
         }
 
         void ARR(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             Accumulator &= value;
             ROR_ACC();
             UpdateZeroAndNegative(Accumulator);
@@ -925,7 +925,7 @@ namespace NesEmu.CPU {
 
         void ASR(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator &= value;
             ROR_ACC();
@@ -933,7 +933,7 @@ namespace NesEmu.CPU {
 
         void ATX(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator &= value;
             RegisterX = Accumulator;
@@ -944,12 +944,12 @@ namespace NesEmu.CPU {
             (ushort address, _) = GetOperandAddress(mode);
             byte result = (byte)(RegisterX & Accumulator);
             result &= 0b111;
-            MemWrite(address, result);
+            Bus.MemWrite(address, result);
         }
 
         void AXS(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             RegisterX &= Accumulator;
             RegisterX -= value;
@@ -963,9 +963,9 @@ namespace NesEmu.CPU {
 
         void DCP(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             value -= 1;
-            MemWrite(address, value);
+            Bus.MemWrite(address, value);
 
             if (value <= Accumulator) {
                 SetStatusFlag(Flags.Carry);
@@ -987,7 +987,7 @@ namespace NesEmu.CPU {
 
         void LAR(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             byte res = (byte)(value & StackPointer);
             Accumulator = res;
@@ -998,7 +998,7 @@ namespace NesEmu.CPU {
 
         void LAX(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator = value;
             RegisterX = value;
@@ -1009,7 +1009,7 @@ namespace NesEmu.CPU {
             ROL(mode);
 
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator &= value;
             UpdateZeroAndNegative(Accumulator);
@@ -1018,7 +1018,7 @@ namespace NesEmu.CPU {
         void RRA(AddressingMode mode) {
             ROR(mode);
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
             AddToAcc(value);
         }
 
@@ -1026,7 +1026,7 @@ namespace NesEmu.CPU {
             ASL(mode);
 
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator |= value;
             UpdateZeroAndNegative(Accumulator);
@@ -1036,7 +1036,7 @@ namespace NesEmu.CPU {
             LSR(mode);
 
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             Accumulator ^= value;
             UpdateZeroAndNegative(Accumulator);
@@ -1044,18 +1044,18 @@ namespace NesEmu.CPU {
 
         void SXA(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             var result = (byte)(RegisterX & (value & 0b11110000 + 1));
-            MemWrite(address, result);
+            Bus.MemWrite(address, result);
         }
 
         void SYA(AddressingMode mode) {
             (ushort address, _) = GetOperandAddress(mode);
-            byte value = MemRead(address);
+            byte value = Bus.MemRead(address);
 
             var result = (byte)(RegisterY & (value & 0b11110000 + 1));
-            MemWrite(address, result);
+            Bus.MemWrite(address, result);
         }
     }
 }

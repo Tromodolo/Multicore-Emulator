@@ -1,8 +1,5 @@
 ﻿using MultiCoreEmulator.Cores;
-using MultiCoreEmulator.Cores.NES;
 using MultiCoreEmulator.Utility;
-using MultiCoreEmulator.Utility.SDL;
-using NesEmu.Bus;
 using System.Diagnostics;
 using static SDL2.SDL;
 
@@ -22,8 +19,8 @@ public static class Program {
 
     public static void Main(string[] args) {
         var picker = new ConsoleFilePicker(new[] {
-                    ".nes", ".nez"
-                }, Directory.GetCurrentDirectory());
+            ".nes", ".nez", ".gbc", ".gb"
+        }, ".");
         string fileName = picker.SelectFile();
 
         byte[] fileByteArr;

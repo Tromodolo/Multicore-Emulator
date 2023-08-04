@@ -40,8 +40,6 @@ namespace NesEmu.Mapper {
 
         ScreenMirroring CurrentMirroring;
 
-        bool Handled;
-
         FileStream savefile;
 
         public void RegisterRom(Rom.Rom rom) {
@@ -85,41 +83,37 @@ namespace NesEmu.Mapper {
             }
         }
 
-        public bool DidMap() {
-            return Handled;
-        }
-
         public void SetProgramCounter(int pc) {
             CurrentPC = pc;
         }
 
-        public byte CpuRead(ushort address) {
-            Handled = false;
+        public byte CpuRead(ushort address, out bool handled) {
+            handled = false;
             if (address >= 0x6000 && address < 0x8000) {
-                Handled = true;
+                handled = true;
                 return PrgRam[address - 0x6000];
             } else if (address >= 0x8000 && address < 0xC000) {
-                Handled = true;
+                handled = true;
                 return PrgRom[(PrgRomBank1 * PRG_SIZE) + (address - 0x8000)];
-            } else if (address >= 0xC000 && address <= 0xFFFF) {
-                Handled = true;
+            } else if (address >= 0xC000) {
+                handled = true;
                 return PrgRom[(PrgRomBank2 * PRG_SIZE) + (address - 0xC000)];
             }
             return 0;
         }
 
-        public void CpuWrite(ushort address, byte value) {
-            Handled = false;
+        public void CpuWrite(ushort address, byte value, out bool handled) {
+            handled = false;
 
             if (address >= 0x6000 && address < 0x8000) {
-                Handled = true;
+                handled = true;
                 PrgRam[address - 0x6000] = value;
                 Persist();
-            } else if (address >= 0x8000 && address <= 0xFFFF) {
+            } else if (address >= 0x8000) {
                 if (LastPC == CurrentPC) {
                     return;
                 }
-                Handled = true;
+                handled = true;
                 LastPC = CurrentPC;
 
                 if (((value >> 7) & 1) == 1) {
@@ -159,25 +153,25 @@ namespace NesEmu.Mapper {
             UpdateChrBanks();
         }
 
-        public byte PPURead(ushort address) {
-            Handled = false;
+        public byte PPURead(ushort address, out bool handled) {
+            handled = false;
             if (address >= 0 && address < 0x1000) {
-                Handled = true;
+                handled = true;
                 return ChrRom[ChrRomOffset1 + address];
             } else if (address >= 0x1000 && address <= 0x1FFF) {
-                Handled = true;
+                handled = true;
                 return ChrRom[ChrRomOffset2 + (address - 0x1000)];
             }
             return 0;
         }
 
-        public void PPUWrite(ushort address, byte value) {
-            Handled = false;
+        public void PPUWrite(ushort address, byte value, out bool handled) {
+            handled = false;
             if (address >= 0 && address < 0x1000) {
-                Handled = true;
+                handled = true;
                 ChrRom[ChrRomOffset1 + address] = value;
             } else if (address >= 0x1000 && address <= 0x1FFF) {
-                Handled = true;
+                handled = true;
                 ChrRom[ChrRomOffset2 + (address - 0x1000)] = value;
             }
         }

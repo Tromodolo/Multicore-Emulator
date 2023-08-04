@@ -43,34 +43,32 @@ namespace NesEmu.Bus
     // | Zero Page     |       |               |
     // |_______________| $0000 |_______________|
     public partial class Bus {
-        public readonly IMapper Mapper;
-        public ControllerRegister Controller1;
+        const int BLIP_BUFFER_SIZE = 4096;
+        public BlipBuffer blipBuffer = new BlipBuffer(BLIP_BUFFER_SIZE);
+        
+        public readonly IMapper currentMapper;
+        
+        public bool IsNewFrame;
+        public bool APUIRQ;
+        public bool DMCDMAActive;
 
-        ulong CycleCount;
         NesCpu CPU;
         PPU.PPU PPU;
         BizHawk.NES.APU APU;
         
         byte[] VRAM;
-        byte[] PrgRom;
+        byte[] PRG;
 
-        int FrameCycle;
-        bool IsNewFrame;
+        ulong totalCycleCount;
+        int CPUCyclesUntilNext;
 
-        int CpuCyclesLeft = 0;
+        int oldBlipSample;
 
-        public BlipBuffer Blip = new BlipBuffer(4096);
-        int BlipBuffSize = 4096;
-        int OldSample;
-
-        public byte DmaPage;
-        public byte DmaAddr;
-        public byte DmaData;
-        public bool DmaDummyRead;
-        public bool DmaActive;
-
-        public bool APUIRQ;
-        public bool DMCDmaActive;
+        byte DMAPage;
+        byte DMAAddress;
+        byte DMAData;
+        bool DMADummyRead;
+        bool DMAActive;
         bool DMCRealign;
 
         // The NTSC has this weird bug for DMC DMA where it might sometimes cause 
@@ -84,49 +82,51 @@ namespace NesEmu.Bus
             CPU = nes;
             PPU = ppu;
             APU = apu;
-            Controller1 = new ControllerRegister();
-            Mapper = rom.Mapper;
-
+            
             VRAM = new byte[2048];
-            PrgRom = rom.PrgRom;
-            CycleCount = 0;
+            currentMapper = rom.Mapper;
+            PRG = rom.PrgRom;
 
-            Blip.Clear();
-            Blip.SetRates(1789773, 44100);
+            player1ButtonState = 0b00000000;
+            player1ButtonLatch = 0;
+            
+            totalCycleCount = 0;
+            
+            blipBuffer.Clear();
+            blipBuffer.SetRates(1789773, 44100);
         }
 
         public bool Clock() {
-            CycleCount++;
+            totalCycleCount++;
 
-            bool isNewFrame = PPU.Clock();
-            if (isNewFrame) {
-                IsNewFrame = isNewFrame;
-                FrameCycle = 0;
+            bool newFrame = PPU.Clock();
+            if (newFrame) {
+                IsNewFrame = newFrame;
             }
 
-            Mapper.SetProgramCounter(CPU.ProgramCounter);
+            currentMapper.SetProgramCounter(CPU.ProgramCounter);
 
             // PPU Runs at 3x the CPU speed, so only do something on every third clock
-            if (CycleCount % 3 != 0)
+            if (totalCycleCount % 3 != 0)
                 return IsNewFrame;
             
-            if (DmaActive && APU.dmc_dma_countdown != 1 && !DMCRealign) {
-                if (DmaDummyRead) {
-                    if (CycleCount % 2 == 1) {
-                        DmaDummyRead = false;
+            if (DMAActive && APU.dmc_dma_countdown != 1 && !DMCRealign) {
+                if (DMADummyRead) {
+                    if (totalCycleCount % 2 == 1) {
+                        DMADummyRead = false;
                     }
                 } else {
-                    if (CycleCount % 2 == 0) {
-                        DmaData = MemRead((ushort)(DmaPage << 8 | DmaAddr));
+                    if (totalCycleCount % 2 == 0) {
+                        DMAData = MemRead((ushort)(DMAPage << 8 | DMAAddress));
                     } else {
-                        PPU.OamData[DmaAddr] = DmaData;
+                        PPU.OAM[DMAAddress] = DMAData;
 
-                        DmaAddr++;
+                        DMAAddress++;
 
                         // Wrap around
-                        if (DmaAddr == 0) {
-                            DmaActive = false;
-                            DmaDummyRead = true;
+                        if (DMAAddress == 0) {
+                            DMAActive = false;
+                            DMADummyRead = true;
                         }
                     }
                 }
@@ -145,12 +145,12 @@ namespace NesEmu.Bus
                 }
 
                 CPU.Ready = false;
-                DMCDmaActive = true;
+                DMCDMAActive = true;
                 APU.dmc_dma_countdown--;
                 if (APU.dmc_dma_countdown == 0) {
                     APU.RunDMCFetch();
 
-                    DMCDmaActive = false;
+                    DMCDMAActive = false;
                     APU.dmc_dma_countdown = -1;
 
                     if ((APU.dmc.timer == 2) && (APU.dmc.out_bits_remaining == 0)) {
@@ -174,37 +174,37 @@ namespace NesEmu.Bus
                 //if (APUIRQ) {
                 //    CPU.IRQPending = true;
                 //}
-                if (Mapper.GetIRQ()) {
+                if (currentMapper.GetIRQ()) {
                     CPU.IRQPending = true;
                 }
             }
 
-            if (CpuCyclesLeft <= 0) {
+            if (CPUCyclesUntilNext <= 0) {
                 //Console.WriteLine("ClockCpu");
                 if (CPU.ShouldLog) {
                     // Console.WriteLine($"TRACE: {Trace.Log(CPU)}");
                 }
 
-                CpuCyclesLeft = CPU.ExecuteInstruction();
+                CPUCyclesUntilNext = CPU.ExecuteInstruction();
 
                 if (!CPU.IRQPending && APUIRQ) {
                     APUIRQ = false;
-                    Mapper.SetIRQ(false);
+                    currentMapper.SetIRQ(false);
                 }
             }
-            CpuCyclesLeft--;
+            CPUCyclesUntilNext--;
 
             APU.RunOneLast();
 
             int sample = APU.EmitSample();
-            if (sample != OldSample) {
-                Blip.AddDelta(APU.sampleclock, sample - OldSample);
-                OldSample = sample;
+            if (sample != oldBlipSample) {
+                blipBuffer.AddDelta(APU.sampleclock, sample - oldBlipSample);
+                oldBlipSample = sample;
             }
 
             APU.sampleclock++;
 
-            if (!CPU.Ready && !DMCDmaActive && !DmaActive) {
+            if (!CPU.Ready && !DMCDMAActive && !DMAActive) {
                 CPU.Ready = true;
             }
 
@@ -213,13 +213,13 @@ namespace NesEmu.Bus
 
         public void Reset() {
             APU.NESHardReset();
-            Mapper.Persist();
+            currentMapper.Persist();
 
-            DmaPage = 0x00;
-            DmaAddr = 0x00;
-            DmaData = 0x00;
-            DmaDummyRead = true;
-            DmaActive = false;
+            DMAPage = 0x00;
+            DMAAddress = 0x00;
+            DMAData = 0x00;
+            DMADummyRead = true;
+            DMAActive = false;
         }
 
         public bool GetNmiStatus() {
@@ -238,12 +238,12 @@ namespace NesEmu.Bus
 
         public byte ReadPrgRom(ushort address) {
             unsafe {
-                fixed (byte* ptr = PrgRom) {
+                fixed (byte* ptr = PRG) {
                     // Make sure the address lines up with the prg rom
                     address -= 0x8000;
 
                     // If the address is longer than the prg rom, mirror it down
-                    if (PrgRom.Length == 0x4000 && address >= 0x4000) {
+                    if (PRG.Length == 0x4000 && address >= 0x4000) {
                         address = (ushort)(address % 0x4000);
                     }
                     return *(ptr + address);
@@ -252,37 +252,35 @@ namespace NesEmu.Bus
         }
 
         public void Save(BinaryWriter writer) {
-            writer.Write(CycleCount);
+            writer.Write(totalCycleCount);
             writer.Write(VRAM);
-            writer.Write(FrameCycle);
             writer.Write(IsNewFrame);
-            writer.Write(CpuCyclesLeft);
-            writer.Write(DmaPage);
-            writer.Write(DmaAddr);
-            writer.Write(DmaData);
-            writer.Write(DmaDummyRead);
-            writer.Write(DmaActive);
-            Mapper.Save(writer);
+            writer.Write(CPUCyclesUntilNext);
+            writer.Write(DMAPage);
+            writer.Write(DMAAddress);
+            writer.Write(DMAData);
+            writer.Write(DMADummyRead);
+            writer.Write(DMAActive);
+            currentMapper.Save(writer);
         }
 
         public void Load(BinaryReader reader) {
-            CycleCount = reader.ReadUInt64();
+            totalCycleCount = reader.ReadUInt64();
             VRAM = reader.ReadBytes(VRAM.Length);
-            FrameCycle = reader.ReadInt32();
             IsNewFrame = reader.ReadBoolean();
-            CpuCyclesLeft = reader.ReadInt32();
-            DmaPage = reader.ReadByte();
-            DmaAddr = reader.ReadByte();
-            DmaData = reader.ReadByte();
-            DmaDummyRead = reader.ReadBoolean();
-            DmaActive = reader.ReadBoolean();
-            Mapper.Load(reader);
+            CPUCyclesUntilNext = reader.ReadInt32();
+            DMAPage = reader.ReadByte();
+            DMAAddress = reader.ReadByte();
+            DMAData = reader.ReadByte();
+            DMADummyRead = reader.ReadBoolean();
+            DMAActive = reader.ReadBoolean();
+            currentMapper.Load(reader);
         }
 
         public void DumpPPUMemory() {
-            byte[] ChrRom = PPU.ChrRom;
-            byte[] Vram = PPU.Vram;
-            byte[] palette = PPU.PaletteTable;
+            byte[] ChrRom = PPU.CHR;
+            byte[] Vram = PPU.VRAM;
+            byte[] palette = PPU.PALETTE;
 
             var chrFile = File.OpenWrite("chr.dump.txt");
             var vramFile = File.OpenWrite("vram.dump.txt");

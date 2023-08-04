@@ -18,15 +18,15 @@ namespace NesEmu.Mapper {
         public void SetProgramCounter(int pc) {}
         public void DecrementScanline() { }
 
-        public bool DidMap();
+        // public bool DidMap();
         public int MappedAddress() { return 0; }
         public void RegisterRom(Rom.Rom rom);
 
-        public byte CpuRead(ushort address);
-        public void CpuWrite(ushort address, byte value);
+        public byte CpuRead(ushort address, out bool handled);
+        public void CpuWrite(ushort address, byte value, out bool handled);
 
-        public byte PPURead(ushort address);
-        public void PPUWrite(ushort address, byte value);
+        public byte PPURead(ushort address, out bool handled);
+        public void PPUWrite(ushort address, byte value, out bool handled);
 
         public void Persist() { }
         public void Save(BinaryWriter writer) { }

@@ -37,7 +37,6 @@ namespace NesEmu.Mapper {
 
         ScreenMirroring CurrentMirroring;
 
-        bool Handled;
         int LastAddress;
 
         FileStream savefile;
@@ -82,10 +81,6 @@ namespace NesEmu.Mapper {
             //}
         }
 
-        public bool DidMap() {
-            return Handled;
-        }
-
         public int MappedAddress() { return LastAddress; }
 
         public void DecrementScanline() {
@@ -110,15 +105,15 @@ namespace NesEmu.Mapper {
             IRQPending = IRQ;
         }
 
-        public byte CpuRead(ushort address) {
-            Handled = false;
+        public byte CpuRead(ushort address, out bool handled) {
+            handled = false;
 
             if (address >= 0x6000 && address < 0x8000 && HasPrgRam) {
-                Handled = true;
+                handled = true;
                 LastAddress = address - 0x6000;
                 return PrgRam[LastAddress];
             } else if (address >= 0x8000 && address <= 0xffff) {
-                Handled = true;
+                handled = true;
                 var index = (int)((address - 0x8000) / PRG_SIZE);
                 LastAddress = PrgOffsets[index];
                 return PrgRom[LastAddress + (address % PRG_SIZE)];
@@ -127,14 +122,14 @@ namespace NesEmu.Mapper {
             return 0;
         }
 
-        public void CpuWrite(ushort address, byte value) {
-            Handled = false;
+        public void CpuWrite(ushort address, byte value, out bool handled) {
+            handled = false;
 
             if (address >= 0x6000 && address < 0x8000 && HasPrgRam) {
-                Handled = true;
+                handled = true;
                 PrgRam[address - 0x6000] = value;
             } else if (address >= 0x8000 && address <= 0xFFFF) {
-                Handled = true;
+                handled = true;
                 bool isEven = address % 2 == 0;
                 if (address >= 0x8000 && address < 0xA000) {
                     if (isEven) { // Bank Select
@@ -181,25 +176,25 @@ namespace NesEmu.Mapper {
                 }
             }
 
-            if (Handled) {
-            UpdateOffsets();
-        }
+            if (handled) {
+                UpdateOffsets();
+            }
         }
 
-        public byte PPURead(ushort address) {
-            Handled = false;
+        public byte PPURead(ushort address, out bool handled) {
+            handled = false;
             if (address >= 0x0000 && address <= 0x1FFF) {
-                Handled = true;
+                handled = true;
                 var index = address / CHR_SIZE;
                 return ChrRom[ChrOffsets[index] + (address % CHR_SIZE)];
             }
             return 0;
         }
 
-        public void PPUWrite(ushort address, byte value) {
-            Handled = false;
+        public void PPUWrite(ushort address, byte value, out bool handled) {
+            handled = false;
             if (address >= 0x0000 && address <= 0x1FFF) {
-                Handled = true;
+                handled = true;
                 var index = address / CHR_SIZE;
                 ChrRom[ChrOffsets[index] + (address % CHR_SIZE)] = value;
             }

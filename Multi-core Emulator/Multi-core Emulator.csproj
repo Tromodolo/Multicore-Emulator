@@ -21,6 +21,15 @@
     <None Update="blip_buf.dll">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Remove="Cores\NES\obj\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Remove="Cores\NES\obj\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Remove="Cores\NES\obj\**" />
   </ItemGroup>
 
 </Project>

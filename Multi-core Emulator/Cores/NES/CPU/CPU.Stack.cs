@@ -8,13 +8,13 @@ using System.Threading.Tasks;
 namespace NesEmu.CPU {
     public partial class NesCpu {
         public void StackPush(byte value) {
-            MemWrite((ushort)(StackStart + StackPointer), value);
+            Bus.MemWrite((ushort)(StackStart + StackPointer), value);
             StackPointer--;
         }
         
         public byte StackPop() {
             StackPointer++;
-            byte value = MemRead((ushort)(StackStart + StackPointer));
+            byte value = Bus.MemRead((ushort)(StackStart + StackPointer));
             return value;
         }
 

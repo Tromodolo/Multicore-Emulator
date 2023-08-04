@@ -96,7 +96,7 @@ public class DebugWindow {
     private void DrawData(ulong data, int x, int y, Colors.ColorSpec color, bool clearBehind = true, int size = 8) {
         for (var yPos = 0; yPos < size; yPos++) {
             for (var xPos = 0; xPos < size; xPos++) {
-                // Don't forget to add positions + offset
+                    // Don't forget to add positions + offset
                 var renderAtX = x + xPos;
                 var renderAtY = y + yPos;
 
@@ -105,12 +105,12 @@ public class DebugWindow {
                 var translatedX = 8 * xPos / size;
                 var translatedY = 8 * yPos / size;
 
-                // Get which pixel to render and then if it is 1, render it
-                // This was hellish to get to work without inverted text
+                    // Get which pixel to render and then if it is 1, render it
+                    // This was hellish to get to work without inverted text
                 var bitPos = translatedY * 8 + translatedX;
                 if (((data >>> (63 - bitPos)) & 1) == 1) {
                     SetPixel(renderAtX, renderAtY, color);
-                } else {
+                    } else {
                     if (clearBehind) {
                         SetPixel(renderAtX, renderAtY, Colors.Black);
                     }

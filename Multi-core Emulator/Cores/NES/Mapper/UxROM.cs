@@ -17,8 +17,6 @@ namespace NesEmu.Mapper {
 
         byte[] PrgRom;
 
-        bool Handled;
-
         public void RegisterRom(Rom.Rom rom) {
             CurrentRom = rom;
             PrgRom = rom.PrgRom;
@@ -26,37 +24,33 @@ namespace NesEmu.Mapper {
             LastBankAddr = PrgRom.Length - BANK_SIZE;
         }
 
-        public bool DidMap() {
-            return Handled;
-        }
-
-        public byte CpuRead(ushort address) {
-            Handled = false;
+        public byte CpuRead(ushort address, out bool handled) {
+            handled = false;
             if (address >= 0x8000 && address < 0xC000) {
-                Handled = true;
+                handled = true;
                 return PrgRom[(CurrentBank * BANK_SIZE) + (address - 0x8000)];
             } else if (address >= 0xC000 && address <= 0xFFFF) {
-                Handled = true;
+                handled = true;
                 return PrgRom[LastBankAddr + (address - 0xC000)];
             }
             return 0;
         }
 
-        public void CpuWrite(ushort address, byte value) {
-            Handled = false;
+        public void CpuWrite(ushort address, byte value, out bool handled) {
+            handled = false;
             if (address >= 0x8000 && address <= 0xffff) {
-                Handled = true;
+                handled = true;
                 CurrentBank = (byte)(value & 0b1111);
             }
         }
 
-        public byte PPURead(ushort address) {
-            Handled = false;
+        public byte PPURead(ushort address, out bool handled) {
+            handled = false;
             return 0;
         }
 
-        public void PPUWrite(ushort address, byte value) {
-            Handled = false;
+        public void PPUWrite(ushort address, byte value, out bool handled) {
+            handled = false;
         }
 
         public ScreenMirroring GetMirroring() {
