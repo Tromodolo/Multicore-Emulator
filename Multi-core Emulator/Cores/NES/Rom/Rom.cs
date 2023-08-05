@@ -162,6 +162,7 @@ namespace NesEmu.Rom {
                 0 => new NROM(),
                 1 => new MMC1(),
                 2 => new UxROM(),
+                3 => new CNRom(),
                 4 => new MMC3(),
                 _ => throw new NotImplementedException($"Mapper {mapperId} not implemented"),
             };

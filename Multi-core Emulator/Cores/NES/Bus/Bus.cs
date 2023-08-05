@@ -85,8 +85,9 @@ namespace NesEmu.Bus
             
             VRAM = new byte[2048];
             currentMapper = rom.Mapper;
+            currentMapper.RegisterBus(this);
             PRG = rom.PrgRom;
-
+            
             player1ButtonState = 0b00000000;
             player1ButtonLatch = 0;
             
