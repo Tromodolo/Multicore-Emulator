@@ -107,9 +107,24 @@ namespace NesEmu.PPU {
             writer.Write(currentScanline);
             writer.Write(totalCycles);
             writer.Write(readBuffer);
+            
             writer.Write(maskRegister);
+            writer.Write(backgroundLeftColumn);
+            writer.Write(renderBackground);
+            writer.Write(spriteLeftcolumn);
+            writer.Write(renderSprites);
+            
             writer.Write(controlRegister);
-            // writer.Write((byte)statusRegister);
+            writer.Write(vramAddressIncrement);
+            writer.Write(backgroundPatternAddress);
+            writer.Write(spritePatternAddress);
+            writer.Write(spriteSize);
+            writer.Write(generateVBlank);
+            
+            writer.Write(isVBlank);
+            writer.Write(isSpriteOverflow);
+            writer.Write(isSpriteZeroHit);
+            
             writer.Write(isInNmiInterrupt);
             writer.Write(loopyTemp.GetAddress());
             writer.Write(loopyValue.GetAddress());
@@ -137,9 +152,24 @@ namespace NesEmu.PPU {
             currentScanline = reader.ReadInt32();
             totalCycles = reader.ReadUInt64();
             readBuffer = reader.ReadByte();
+
             maskRegister = reader.ReadByte();
+            backgroundLeftColumn = reader.ReadBoolean();
+            renderBackground = reader.ReadBoolean();
+            spriteLeftcolumn = reader.ReadBoolean();
+            renderSprites = reader.ReadBoolean();
+
             controlRegister = reader.ReadByte();
-            // statusRegister = (StatusRegisterFlags)reader.ReadByte();
+            vramAddressIncrement = reader.ReadByte();
+            backgroundPatternAddress = reader.ReadUInt16();
+            spritePatternAddress = reader.ReadUInt16();
+            spriteSize = reader.ReadByte();
+            generateVBlank = reader.ReadBoolean();
+
+            isVBlank = reader.ReadBoolean();
+            isSpriteOverflow = reader.ReadBoolean();
+            isSpriteZeroHit = reader.ReadBoolean();
+            
             isInNmiInterrupt = reader.ReadBoolean();
             loopyTemp.Update(reader.ReadUInt16());
             loopyValue.Update(reader.ReadUInt16());
