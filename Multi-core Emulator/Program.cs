@@ -17,6 +17,9 @@ public static class Program {
     static bool IsShiftPressed;
     static bool IsSaveStateHappening;
 
+    static short[] AudioSamplesOut;
+    static string CurrentFileName;
+
     public static void Main(string[] args) {
         var picker = new ConsoleFilePicker(new[] {
             ".nes", ".nez", ".gbc", ".gb"
@@ -26,6 +29,7 @@ public static class Program {
         byte[] fileByteArr;
         try {
             fileByteArr = File.ReadAllBytes(fileName);
+            CurrentFileName = Path.GetFileName(fileName);
         } catch (Exception e) {
             throw new("Couldn't find file, try again");
         }
@@ -42,7 +46,18 @@ public static class Program {
             Console.WriteLine($"There was an issue initializing  {SDL_GetError()}");
             return;
         }
+        
+        SDL_SetWindowTitle(CoreWindow, $"Playing {CurrentFileName}");
 
+        nint activeController;
+        for (var i = 0; i < SDL_NumJoysticks(); i++) {
+            if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
+                continue;
+            }
+            activeController = SDL_GameControllerOpen(i);
+            break;
+        }
+        
         UsedAudioDevice = "";
         if (File.Exists("audio_device.conf")) {
             UsedAudioDevice = File.ReadAllText("audio_device.conf");
@@ -102,9 +117,6 @@ public static class Program {
             File.WriteAllText("audio_device.conf", UsedAudioDevice);
         }
 
-        short[] samplesOut;
-        IsRunning = true;
-
         SDLAudioSpec.channels = 1;
         SDLAudioSpec.freq = 44100;
         SDLAudioSpec.samples = 1024;
@@ -117,9 +129,9 @@ public static class Program {
                 
                 if (IsRunning && !IsSaveStateHappening) {
                     emulatorCore.ClockSamples(numSamples);
-                    samplesOut = emulatorCore.GetSamples(numSamples);
+                    AudioSamplesOut = emulatorCore.GetSamples(numSamples);
                     for (var i = 0; i < numSamples; i++) {
-                        streamPtr[i] = samplesOut[i];
+                        streamPtr[i] = AudioSamplesOut[i];
                     }
                 }
             }
@@ -134,15 +146,8 @@ public static class Program {
         Console.WriteLine($"Audio Device Initialized: {UsedAudioDevice}");
         SDL_PauseAudioDevice((uint)AudioDeviceId, 0);
 
-        nint activeController;
-        for (var i = 0; i < SDL_NumJoysticks(); i++) {
-            if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
-                continue;
-            }
-            activeController = SDL_GameControllerOpen(i);
-            break;
-        }
-
+        IsRunning = true;
+        
 #if DEBUG
         // var debugWindow = new DebugWindow();
         // ThreadPool.QueueUserWorkItem((callback) => {
