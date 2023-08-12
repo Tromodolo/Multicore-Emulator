@@ -1,17 +1,6 @@
 ﻿using MultiCoreEmulator.Utility;
 using NesEmu.CPU;
 using NesEmu.Mapper;
-using NesEmu.PPU;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
-using static SDL2.SDL;
 
 namespace NesEmu.Bus
 {
@@ -43,26 +32,28 @@ namespace NesEmu.Bus
     // | Zero Page     |       |               |
     // |_______________| $0000 |_______________|
     public partial class Bus {
-        const int BLIP_BUFFER_SIZE = 4096;
-        public BlipBuffer blipBuffer = new BlipBuffer(BLIP_BUFFER_SIZE);
-        
         public readonly IMapper currentMapper;
         
-        public bool IsNewFrame;
         public bool APUIRQ;
         public bool DMCDMAActive;
 
         NesCpu CPU;
         PPU.PPU PPU;
         BizHawk.NES.APU APU;
-        
+        public CircleBuffer<short> AudioBuffer;
+
         byte[] VRAM;
-        byte[] PRG;
 
         ulong totalCycleCount;
-        int CPUCyclesUntilNext;
+        int CPUCyclesUntilNextInstruction;
 
-        int oldBlipSample;
+        const int CLOCKS_PER_SAMPLE = 1789773 / 44100; 
+        int clocksSinceLastSample;
+        
+        int apuSample;
+        
+        public int SamplesCollected;
+        public bool PendingFrame;
 
         byte DMAPage;
         byte DMAAddress;
@@ -86,30 +77,27 @@ namespace NesEmu.Bus
             VRAM = new byte[2048];
             currentMapper = rom.Mapper;
             currentMapper.RegisterBus(this);
-            PRG = rom.PrgRom;
             
             player1ButtonState = 0b00000000;
             player1ButtonLatch = 0;
             
             totalCycleCount = 0;
-            
-            blipBuffer.Clear();
-            blipBuffer.SetRates(1789773, 44100);
+
+            AudioBuffer = new CircleBuffer<short>(735 * 3);
         }
 
-        public bool Clock() {
+        public void Clock() {
             totalCycleCount++;
 
-            bool newFrame = PPU.Clock();
-            if (newFrame) {
-                IsNewFrame = newFrame;
+            if (PPU.Clock()) {
+                PendingFrame = true;
             }
 
             currentMapper.SetProgramCounter(CPU.ProgramCounter);
 
             // PPU Runs at 3x the CPU speed, so only do something on every third clock
             if (totalCycleCount % 3 != 0)
-                return IsNewFrame;
+                return;
             
             if (DMAActive && APU.dmc_dma_countdown != 1 && !DMCRealign) {
                 if (DMADummyRead) {
@@ -168,7 +156,6 @@ namespace NesEmu.Bus
 
             APU.RunOneFirst();
 
-
             if (CPU.CanInterrupt()) {
                 // This timing is super broken and I need to fix it
                 // Implement mapper 71 maybe?
@@ -180,36 +167,34 @@ namespace NesEmu.Bus
                 }
             }
 
-            if (CPUCyclesUntilNext <= 0) {
+            if (CPUCyclesUntilNextInstruction <= 0) {
                 //Console.WriteLine("ClockCpu");
                 if (CPU.ShouldLog) {
                     // Console.WriteLine($"TRACE: {Trace.Log(CPU)}");
                 }
 
-                CPUCyclesUntilNext = CPU.ExecuteInstruction();
+                CPUCyclesUntilNextInstruction = CPU.ExecuteInstruction();
 
                 if (!CPU.IRQPending && APUIRQ) {
                     APUIRQ = false;
                     currentMapper.SetIRQ(false);
                 }
             }
-            CPUCyclesUntilNext--;
+            CPUCyclesUntilNextInstruction--;
 
             APU.RunOneLast();
 
-            int sample = APU.EmitSample();
-            if (sample != oldBlipSample) {
-                blipBuffer.AddDelta(APU.sampleclock, sample - oldBlipSample);
-                oldBlipSample = sample;
-            }
-
-            APU.sampleclock++;
+            if (clocksSinceLastSample >= CLOCKS_PER_SAMPLE) {
+                apuSample = APU.EmitSample();
+                AudioBuffer.AddBack((short)apuSample);
+                clocksSinceLastSample %= CLOCKS_PER_SAMPLE;
+                SamplesCollected++;
+            } 
+            clocksSinceLastSample++;
 
             if (!CPU.Ready && !DMCDMAActive && !DMAActive) {
                 CPU.Ready = true;
             }
-
-            return IsNewFrame;
         }
 
         public void Reset() {
@@ -227,36 +212,11 @@ namespace NesEmu.Bus
             return PPU.GetInterrupt();
         }
 
-        public bool PollDrawFrame() {
-            return IsNewFrame;
-        }
-
-        public bool GetDrawFrame() {
-            bool isFrame = IsNewFrame;
-            IsNewFrame = false;
-            return isFrame;
-        }
-
-        public byte ReadPrgRom(ushort address) {
-            unsafe {
-                fixed (byte* ptr = PRG) {
-                    // Make sure the address lines up with the prg rom
-                    address -= 0x8000;
-
-                    // If the address is longer than the prg rom, mirror it down
-                    if (PRG.Length == 0x4000 && address >= 0x4000) {
-                        address = (ushort)(address % 0x4000);
-                    }
-                    return *(ptr + address);
-                }
-            }
-        }
-
         public void Save(BinaryWriter writer) {
             writer.Write(totalCycleCount);
             writer.Write(VRAM);
-            writer.Write(IsNewFrame);
-            writer.Write(CPUCyclesUntilNext);
+            writer.Write(PendingFrame);
+            writer.Write(CPUCyclesUntilNextInstruction);
             writer.Write(DMAPage);
             writer.Write(DMAAddress);
             writer.Write(DMAData);
@@ -268,51 +228,14 @@ namespace NesEmu.Bus
         public void Load(BinaryReader reader) {
             totalCycleCount = reader.ReadUInt64();
             VRAM = reader.ReadBytes(VRAM.Length);
-            IsNewFrame = reader.ReadBoolean();
-            CPUCyclesUntilNext = reader.ReadInt32();
+            PendingFrame = reader.ReadBoolean();
+            CPUCyclesUntilNextInstruction = reader.ReadInt32();
             DMAPage = reader.ReadByte();
             DMAAddress = reader.ReadByte();
             DMAData = reader.ReadByte();
             DMADummyRead = reader.ReadBoolean();
             DMAActive = reader.ReadBoolean();
             currentMapper.Load(reader);
-        }
-
-        public void DumpPPUMemory() {
-            byte[] ChrRom = PPU.CHR;
-            byte[] Vram = PPU.VRAM;
-            byte[] palette = PPU.PALETTE;
-
-            var chrFile = File.OpenWrite("chr.dump.txt");
-            var vramFile = File.OpenWrite("vram.dump.txt");
-            var paletteFile = File.OpenWrite("palete.dump.txt");
-
-            chrFile.Write(
-                Encoding.ASCII.GetBytes(string.Join(
-                    ", ",
-                    ChrRom.Select(x => x.ToString("X")).ToArray()
-                ))
-            );
-            chrFile.Flush();
-            chrFile.Close();
-
-            vramFile.Write(
-                Encoding.ASCII.GetBytes(string.Join(
-                    ", ",
-                    Vram.Select(x => x.ToString("X")).ToArray()
-                ))
-            );
-            vramFile.Flush();
-            vramFile.Close();
-
-            paletteFile.Write(
-                Encoding.ASCII.GetBytes(string.Join(
-                    ", ",
-                    palette.Select(x => x.ToString("X")).ToArray()
-                ))
-            );
-            paletteFile.Flush();
-            paletteFile.Close();
         }
     }
 }

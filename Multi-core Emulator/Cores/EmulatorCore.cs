@@ -6,9 +6,9 @@ namespace MultiCoreEmulator.Cores {
         public nint InitializeWindow(string windowName = "Game", int windowWidth = 256, int windowHeight = 240);
         public void CloseWindow();
         public void LoadBytes(string fileName, byte[] bytes);
-        public bool Clock();
+        public void ClockSamples(int numAudioSamples);
         public void Reset();
-        public short[] GetFrameSamples(out int numAvailable);
+        public short[] GetSamples(int numAudioSamples);
         public void SaveState(int slot);
         public void LoadState(int slot);
 

@@ -29,6 +29,11 @@ public static class Program {
         } catch (Exception e) {
             throw new("Couldn't find file, try again");
         }
+        
+        // Initialize and clock game cores
+        var emulatorCore = GetApplicableEmulatorCore(fileName);
+        CoreWindow = emulatorCore.InitializeWindow();
+        emulatorCore.LoadBytes(fileName, fileByteArr);
 
         // Initialize SDL2
         SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
@@ -97,11 +102,29 @@ public static class Program {
             File.WriteAllText("audio_device.conf", UsedAudioDevice);
         }
 
+        short[] samplesOut;
+        IsRunning = true;
+
         SDLAudioSpec.channels = 1;
         SDLAudioSpec.freq = 44100;
-        SDLAudioSpec.samples = 4096;
+        SDLAudioSpec.samples = 1024;
         SDLAudioSpec.format = AUDIO_S16LSB;
-
+        SDLAudioSpec.callback = (userdata, stream, num) => {
+            unsafe {
+                var streamPtr = (short*)stream;
+                // Not sure why num is double the required amount here?
+                var numSamples = num / 2;
+                
+                if (IsRunning && !IsSaveStateHappening) {
+                    emulatorCore.ClockSamples(numSamples);
+                    samplesOut = emulatorCore.GetSamples(numSamples);
+                    for (var i = 0; i < numSamples; i++) {
+                        streamPtr[i] = samplesOut[i];
+                    }
+                }
+            }
+        };
+        
         AudioDeviceId = (int)SDL_OpenAudioDevice(UsedAudioDevice, 0, ref SDLAudioSpec, out var received, 0);
         if (AudioDeviceId == 0) {
             Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
@@ -119,58 +142,6 @@ public static class Program {
             activeController = SDL_GameControllerOpen(i);
             break;
         }
-
-        // Initialize and clock game cores
-        var emulatorCore = GetApplicableEmulatorCore(fileName);
-        CoreWindow = emulatorCore.InitializeWindow();
-        emulatorCore.LoadBytes(fileName, fileByteArr);
-
-        IsRunning = true;
-        var sw = new Stopwatch();
-        var frameSync = new Stopwatch();
-        var windowTitle = $"Playing ${fileName} - FPS: 0";
-
-        sw.Start();
-        frameSync.Start();
-
-        ThreadPool.QueueUserWorkItem((callback) => {
-            while (IsRunning) {
-                bool isNewFrame = false;
-                do {
-                    if (IsSaveStateHappening)
-                        continue;
-                    isNewFrame = emulatorCore.Clock();
-                } while (!isNewFrame);
-                CurrentFrame++;
-
-                if (IsFrameCap) {
-                    while (frameSync.ElapsedTicks < 16.66666666 * 10000) {
-                        continue;
-                    }
-                }
-
-                if (CurrentFrame % 60 == 0 && CurrentFrame != 0) {
-                    sw.Stop();
-                    CurrentFrame = 0;
-                    decimal framerate = 60m / ((decimal)sw.ElapsedMilliseconds / 1000);
-                    SDL_SetWindowTitle(CoreWindow, $"Playing {fileName} - FPS: {Math.Round(framerate, 2)}");
-                    sw.Restart();
-                }
-
-                var samples = emulatorCore.GetFrameSamples(out int numAvailable);
-                uint numQueued = SDL_GetQueuedAudioSize((uint)AudioDeviceId);
-                if (numQueued < 4096 * 3) {
-                    unsafe {
-                        fixed (short* ptr = samples) {
-                            var intPtr = new nint(ptr);
-                            _ = SDL_QueueAudio((uint)AudioDeviceId, intPtr, (uint)(numAvailable * 2));
-                        }
-                    }
-                }
-
-                frameSync.Restart();
-            }
-        });
 
 #if DEBUG
         // var debugWindow = new DebugWindow();

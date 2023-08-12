@@ -24,11 +24,7 @@ namespace MultiCoreEmulator.Cores.NES {
         NesCpu CPU;
         Rom Rom;
 
-        int SamplesPerFrame = (44100 / 60) + 1;
-
-        ulong CurrentFrame = 0;
-
-        public Core() {}
+        short[]? samplesOut;
 
         public nint InitializeWindow(string windowName = "NES", int windowWidth = 256, int windowHeight = 240) {
             // Create a new window given a title, size, and passes it a flag indicating it should be shown.
@@ -78,33 +74,26 @@ namespace MultiCoreEmulator.Cores.NES {
             Bus.Reset();
         }
 
-        public bool Clock() {
-            if (!Bus.Clock())
-                return false;
+        public void ClockSamples(int numAudioSamples) {
+            while (Bus.SamplesCollected < numAudioSamples) {
+                Bus.Clock();
 
-            CurrentFrame++;
-            PPU.DrawFrame(ref Renderer, ref Texture);
-            Bus.IsNewFrame = false;
-            return true;
-        }
-
-        public short[] GetFrameSamples(out int numAvailable) {
-            Bus.blipBuffer.EndFrame(APU.sampleclock);
-            APU.sampleclock = 0;
-
-            var samples = new short[SamplesPerFrame];
-            numAvailable = Bus.blipBuffer.SamplesAvailable();
-            int samplesSelected = SamplesPerFrame;
-            if (numAvailable < SamplesPerFrame) {
-                samplesSelected = numAvailable;
-            }                
-            Bus.blipBuffer.ReadSamples(samples, samplesSelected, false);
-
-            if (numAvailable != SamplesPerFrame) {
-                samples = Resample(samples, samplesSelected, SamplesPerFrame);
+                if (Bus.PendingFrame) {
+                    PPU.DrawFrame(ref Renderer, ref Texture);
+                    Bus.PendingFrame = false;        
+                }
             }
 
-            return samples;
+            Bus.SamplesCollected -= numAudioSamples;
+        }
+
+        public short[] GetSamples(int numAudioSamples) {
+            if (samplesOut == null || samplesOut.Length != numAudioSamples) {
+                samplesOut = new short[numAudioSamples];
+            }
+            
+            Bus.AudioBuffer.FillBuffer(ref samplesOut);
+            return samplesOut;
         }
 
         public void SaveState(int slot) {
@@ -135,45 +124,6 @@ namespace MultiCoreEmulator.Cores.NES {
             PPU.Load(binaryReader);
             Bus.Load(binaryReader);
             fileStream.Close();
-        }
-
-        // Taken from BizHawk, their license should be in my license file - Tromo
-        // This uses simple linear interpolation which is supposedly not a great idea for
-        // resampling audio, but it sounds surprisingly good to me. Maybe it works well
-        // because we are typically stretching by very small amounts.
-        private static short[] Resample(short[] input, int inputCount, int outputCount) {
-            if (inputCount == outputCount) {
-                return input;
-            }
-
-            const int channels = 1;
-            var output = new short[outputCount * channels];
-
-            if (inputCount == 0 || outputCount == 0) {
-                Array.Clear(output, 0, outputCount * channels);
-                return output;
-            }
-
-            for (var iOutput = 0; iOutput < outputCount; iOutput++) {
-                double iInput = ((double)iOutput / (outputCount - 1)) * (inputCount - 1);
-                var iInput0 = (int)iInput;
-                int iInput1 = iInput0 + 1;
-                double input0Weight = iInput1 - iInput;
-                double input1Weight = iInput - iInput0;
-
-                if (iInput1 == inputCount)
-                    iInput1 = inputCount - 1;
-
-                for (var iChannel = 0; iChannel < channels; iChannel++) {
-                    double value =
-                        input[iInput0 * channels + iChannel] * input0Weight +
-                        input[iInput1 * channels + iChannel] * input1Weight;
-
-                    output[iOutput * channels + iChannel] = (short)((int)(value + 32768.5) - 32768);
-                }
-            }
-
-            return output;
         }
 
         public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {
