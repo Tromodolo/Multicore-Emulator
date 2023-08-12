@@ -26,6 +26,9 @@ namespace MultiCoreEmulator.Cores.NES {
 
         short[]? samplesOut;
 
+        bool isSaveStateHappening;
+        bool isFastForward;
+
         public nint InitializeWindow(string windowName = "NES", int windowWidth = 256, int windowHeight = 240) {
             // Create a new window given a title, size, and passes it a flag indicating it should be shown.
             Window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth * 3, windowHeight * 3, SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN);
@@ -76,11 +79,19 @@ namespace MultiCoreEmulator.Cores.NES {
 
         public void ClockSamples(int numAudioSamples) {
             while (Bus.SamplesCollected < numAudioSamples) {
+                if (isSaveStateHappening) {
+                    continue;
+                }
+
                 Bus.Clock();
 
+                if (isFastForward) {
+                    Bus.SamplesCollected = 0;
+                }
+                
                 if (Bus.PendingFrame) {
                     PPU.DrawFrame(ref Renderer, ref Texture);
-                    Bus.PendingFrame = false;        
+                    Bus.PendingFrame = false;  
                 }
             }
 
@@ -97,6 +108,8 @@ namespace MultiCoreEmulator.Cores.NES {
         }
 
         public void SaveState(int slot) {
+            isSaveStateHappening = true;
+            
             string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
@@ -108,9 +121,13 @@ namespace MultiCoreEmulator.Cores.NES {
             PPU.Save(binaryWriter);
             Bus.Save(binaryWriter);
             fileStream.Close();
+            
+            isSaveStateHappening = false;
         }
 
         public void LoadState(int slot) {
+            isSaveStateHappening = true;
+            
             string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
@@ -124,6 +141,8 @@ namespace MultiCoreEmulator.Cores.NES {
             PPU.Load(binaryReader);
             Bus.Load(binaryReader);
             fileStream.Close();
+
+            isSaveStateHappening = false;
         }
 
         public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {
@@ -157,7 +176,8 @@ namespace MultiCoreEmulator.Cores.NES {
                 case SDL_Keycode.SDLK_d:
                     currentKeys |= 0b00000001;
                     break;
-                default:
+                case SDL_Keycode.SDLK_TAB:
+                    isFastForward = true;
                     break;
             }
 
@@ -192,7 +212,8 @@ namespace MultiCoreEmulator.Cores.NES {
                 case SDL_Keycode.SDLK_d:
                     currentKeys &= 0b11111110;
                     break;
-                default:
+                case SDL_Keycode.SDLK_TAB:
+                    isFastForward = false;
                     break;
             }
 
@@ -227,7 +248,8 @@ namespace MultiCoreEmulator.Cores.NES {
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
                     currentKeys |= 0b00000001;
                     break;
-                default:
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                    isFastForward = true;
                     break;
             }
 
@@ -262,7 +284,8 @@ namespace MultiCoreEmulator.Cores.NES {
                 case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
                     currentKeys &= 0b11111110;
                     break;
-                default:
+                case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
+                    isFastForward = false;
                     break;
             }
 

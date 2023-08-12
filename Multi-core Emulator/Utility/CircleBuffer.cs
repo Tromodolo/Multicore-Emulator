@@ -19,7 +19,7 @@ public class CircleBuffer<T> {
 		end %= data.Length;
 
 		if (end == start) {
-			Console.WriteLine("Audio Buffer Overflowing");
+			// Console.WriteLine("Audio Buffer Overflowing");
 			
 			start += 1;
 			start %= data.Length;
@@ -39,10 +39,15 @@ public class CircleBuffer<T> {
 		return value;
 	}
 
+	public void Clear() {
+		start = 0;
+		end = 0;
+	}
+
 	public T[] FillBuffer(ref T[] buffer) {
 		for (int i = 0; i < buffer.Length; i++) {
 			if (start == end) {
-				Console.WriteLine("Audio Buffer too empty");
+				// Console.WriteLine("Audio Buffer too empty");
 				break;
 			}
 			

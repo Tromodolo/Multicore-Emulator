@@ -12,10 +12,9 @@ public static class Program {
 
     static ulong CurrentFrame = 0;
     static nint CoreWindow;
+
     static bool IsRunning;
-    static bool IsFrameCap = true;
     static bool IsShiftPressed;
-    static bool IsSaveStateHappening;
 
     static short[] AudioSamplesOut;
     static string CurrentFileName;
@@ -127,7 +126,7 @@ public static class Program {
                 // Not sure why num is double the required amount here?
                 var numSamples = num / 2;
                 
-                if (IsRunning && !IsSaveStateHappening) {
+                if (IsRunning) {
                     emulatorCore.ClockSamples(numSamples);
                     AudioSamplesOut = emulatorCore.GetSamples(numSamples);
                     for (var i = 0; i < numSamples; i++) {
@@ -191,8 +190,6 @@ public static class Program {
                         // SDL_SetWindowPosition(debugWindow.Window, coreX + coreWidth, coreY);
 #endif
                         break;
-                    default:
-                        break;
                 }
             }
         }
@@ -206,13 +203,11 @@ public static class Program {
     }
 
     private static void HandleSaveState(EmulatorCoreBase core, int slot) {
-        IsSaveStateHappening = true;
         if (IsShiftPressed) {
             core.SaveState(slot);
         } else {
             core.LoadState(slot);
         }
-        IsSaveStateHappening = false;
     }
 
     // Key/button events used for global functions such as savestates or framecap
@@ -242,9 +237,6 @@ public static class Program {
             case SDL_Keycode.SDLK_F8:
                 HandleSaveState(core, 8);
                 break;
-            case SDL_Keycode.SDLK_TAB:
-                IsFrameCap = false;
-                break;
             case SDL_Keycode.SDLK_LSHIFT:
                 IsShiftPressed = true;
                 break;
@@ -256,9 +248,6 @@ public static class Program {
 
     private static void HandleKeyUp(EmulatorCoreBase core, SDL_KeyboardEvent keyboardEvent) {
         switch (keyboardEvent.keysym.sym) {
-            case SDL_Keycode.SDLK_TAB:
-                IsFrameCap = true;
-                break;
             case SDL_Keycode.SDLK_ESCAPE:
                 IsRunning = false;
                 break;
@@ -273,9 +262,6 @@ public static class Program {
 
     private static void HandleButtonDown(EmulatorCoreBase core, SDL_GameControllerButton button) {
         switch (button) {
-            case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-                IsFrameCap = false;
-                break;
             case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_GUIDE:
                 core.Reset();
                 break;
@@ -286,12 +272,6 @@ public static class Program {
     }
 
     private static void HandleButtonUp(EmulatorCoreBase core, SDL_GameControllerButton button) {
-        switch (button) {
-            case SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_LEFTSHOULDER:
-                IsFrameCap = true;
-                break;
-        }
-
         // Pass event down to the core level
         core.HandleButtonUp(button);
     }
