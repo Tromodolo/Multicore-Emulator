@@ -29,7 +29,11 @@ namespace MultiCoreEmulator.Cores.NES {
         bool isSaveStateHappening;
         bool isFastForward;
 
-        public nint InitializeWindow(string windowName = "NES", int windowWidth = 256, int windowHeight = 240) {
+        public nint InitializeWindow() {
+            string windowName = "NES";
+            int windowWidth = SCREEN_WIDTH;
+            int windowHeight = SCREEN_HEIGHT - SCREEN_OFFSET_TOP - SCREEN_OFFSET_BOTTOM;
+            
             // Create a new window given a title, size, and passes it a flag indicating it should be shown.
             Window = SDL_CreateWindow(windowName, SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, windowWidth * 3, windowHeight * 3, SDL_WindowFlags.SDL_WINDOW_RESIZABLE | SDL_WindowFlags.SDL_WINDOW_SHOWN);
 

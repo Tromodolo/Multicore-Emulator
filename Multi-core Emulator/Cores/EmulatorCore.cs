@@ -3,7 +3,7 @@ using static SDL2.SDL;
 
 namespace MultiCoreEmulator.Cores {
     public interface EmulatorCoreBase {
-        public nint InitializeWindow(string windowName = "Game", int windowWidth = 256, int windowHeight = 240);
+        public nint InitializeWindow();
         public void CloseWindow();
         public void LoadBytes(string fileName, byte[] bytes);
         public void ClockSamples(int numAudioSamples);

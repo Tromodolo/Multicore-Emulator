@@ -12,6 +12,12 @@ namespace NesEmu.PPU {
     }
     
     public class PPU {
+        public const int SCREEN_OFFSET_TOP = 8;
+        public const int SCREEN_OFFSET_BOTTOM = 8;
+        
+        public const int SCREEN_WIDTH = 256;
+        public const int SCREEN_HEIGHT = 240;
+        
         public byte[] CHR;
         public byte[] PALETTE;
         public byte[] VRAM;
@@ -19,7 +25,7 @@ namespace NesEmu.PPU {
         
         Bus.Bus bus;
         bool mapperDidMap;
-        readonly uint[] frameBuffer = new uint[256 * 240];
+        readonly uint[] frameBuffer = new uint[SCREEN_WIDTH * (SCREEN_HEIGHT - SCREEN_OFFSET_TOP - SCREEN_OFFSET_BOTTOM)];
         
         byte readBuffer;
         bool isInNmiInterrupt;
@@ -598,10 +604,13 @@ namespace NesEmu.PPU {
 
             var pixelX = dotsDrawn - 1;
             var pixelY = currentScanline;
-            if (pixelX >= 0 && pixelX < 256 && pixelY >= 0 && pixelY < 240) {
+
+            if (pixelX >= 0 && pixelX < SCREEN_WIDTH && pixelY >= SCREEN_OFFSET_TOP && pixelY < (SCREEN_HEIGHT - SCREEN_OFFSET_TOP)) {
+                pixelY -= SCREEN_OFFSET_TOP;
+                
                 frameBuffer[
                     pixelX +
-                    pixelY * 256
+                    pixelY * SCREEN_WIDTH
                 ] = (uint)((color.Item1 << 16) | (color.Item2 << 8 | (color.Item3 << 0)));
             }
 
@@ -905,15 +914,15 @@ namespace NesEmu.PPU {
         public void DrawFrame(ref nint renderer, ref nint Texture) {
             unsafe {
                 SDL.SDL_Rect rect;
-                rect.w = 256 * 3;
-                rect.h = 240 * 3;
+                rect.w = SCREEN_WIDTH * 3;
+                rect.h = (SCREEN_HEIGHT - SCREEN_OFFSET_TOP - SCREEN_OFFSET_BOTTOM) * 3;
                 rect.x = 0;
                 rect.y = 0;
 
                 fixed (uint* pArray = frameBuffer) {
                     var intPtr = new nint(pArray);
 
-                    _ = SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, 256 * 4);
+                    _ = SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, SCREEN_WIDTH * 4);
                 }
 
                 _ = SDL.SDL_RenderCopy(renderer, Texture, nint.Zero, ref rect);
