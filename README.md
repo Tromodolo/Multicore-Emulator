@@ -1,11 +1,23 @@
-Please do not try to actually use this yet. It is not ready to play basically anything.
+**This emulator is only made for learning's sake. If you want a proper emulator, just use something else like Bizhawk or FCEUX or Higan**
 
-# Stuff to Implement before being usable
-- Audio Processing Unit
-- Rom Mapper Support
-- NES 2.0 Rom Support
+*I will also not be taking pull request, due to this being by nature a very personal project.*
 
-## Many thanks to:
-- SDL2-CS https://github.com/flibitijibibo/SDL2-CS
-  - Used to render basically everything.  
-  - Currently in its own subfolder. Code unchanged from original.
+If you want to run this project, simply clone it and build it using `dotnet build`
+
+
+# Implemented Mappers
+- NROM (0)
+- MMC1 (1)
+- UxROM (2)
+- CNROM (3)
+- MMC3 (4)
+
+# Known Problems
+- Scrolling vertically in games shows wrong tiles at top/bottom of screen.
+
+  Examples of this: Megaman 2/Final Fantasy
+
+# To Do
+- Implement more mappers
+- Creating self-written APU instead of using bizhawk's implementation.
+- GBC Emulation Core
