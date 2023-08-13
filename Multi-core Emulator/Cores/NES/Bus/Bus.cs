@@ -217,11 +217,21 @@ namespace NesEmu.Bus
             writer.Write(VRAM);
             writer.Write(PendingFrame);
             writer.Write(CPUCyclesUntilNextInstruction);
+            writer.Write(clocksSinceLastSample);
+            writer.Write(apuSample);
+            writer.Write(APUIRQ);
+            writer.Write(DMCDMAActive);
+            writer.Write(SamplesCollected);
+            writer.Write(PendingFrame);
             writer.Write(DMAPage);
             writer.Write(DMAAddress);
             writer.Write(DMAData);
             writer.Write(DMADummyRead);
             writer.Write(DMAActive);
+            writer.Write(player1ButtonState);
+            writer.Write(player1ButtonLatch);
+            writer.Write(mapperDidMap);
+            
             currentMapper.Save(writer);
         }
 
@@ -230,11 +240,21 @@ namespace NesEmu.Bus
             VRAM = reader.ReadBytes(VRAM.Length);
             PendingFrame = reader.ReadBoolean();
             CPUCyclesUntilNextInstruction = reader.ReadInt32();
+            clocksSinceLastSample = reader.ReadInt32();
+            apuSample = reader.ReadInt32();
+            APUIRQ = reader.ReadBoolean();
+            DMCDMAActive = reader.ReadBoolean();
+            SamplesCollected = reader.ReadInt32();
+            PendingFrame = reader.ReadBoolean();
             DMAPage = reader.ReadByte();
             DMAAddress = reader.ReadByte();
             DMAData = reader.ReadByte();
             DMADummyRead = reader.ReadBoolean();
             DMAActive = reader.ReadBoolean();
+            player1ButtonState = reader.ReadByte();
+            player1ButtonLatch = reader.ReadByte();
+            mapperDidMap = reader.ReadBoolean();
+            
             currentMapper.Load(reader);
         }
     }

@@ -110,6 +110,9 @@ namespace NesEmu.CPU {
             writer.Write((int)Status);
             writer.Write(TotalCycles);
             writer.Write(NumCyclesExecuted);
+            writer.Write(Ready);
+            writer.Write(FreezeExecution);
+            writer.Write(IRQPending);
         }
 
         public void Load(BinaryReader reader) {
@@ -122,6 +125,9 @@ namespace NesEmu.CPU {
             Status = (Flags)reader.ReadInt32();
             TotalCycles = reader.ReadUInt64();
             NumCyclesExecuted = reader.ReadByte();
+            Ready = reader.ReadBoolean();
+            FreezeExecution = reader.ReadBoolean();
+            IRQPending = reader.ReadBoolean();
         }
     }
 }

@@ -27,6 +27,10 @@ namespace MultiCoreEmulator.Cores.NES {
         short[]? samplesOut;
 
         bool isSaveStateHappening;
+        bool isLoadStateHappening;
+
+        int stateSlot;
+        
         bool isFastForward;
 
         public nint InitializeWindow() {
@@ -84,6 +88,13 @@ namespace MultiCoreEmulator.Cores.NES {
         public void ClockSamples(int numAudioSamples) {
             while (Bus.SamplesCollected < numAudioSamples) {
                 if (isSaveStateHappening) {
+                    InternalSaveState(stateSlot);
+                    isSaveStateHappening = false;
+                    continue;
+                }
+                if (isLoadStateHappening) {
+                    InternalLoadState(stateSlot);
+                    isLoadStateHappening = false;
                     continue;
                 }
 
@@ -113,7 +124,10 @@ namespace MultiCoreEmulator.Cores.NES {
 
         public void SaveState(int slot) {
             isSaveStateHappening = true;
-            
+            stateSlot = slot;
+        }
+
+        private void InternalSaveState(int slot) {
             string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
@@ -121,17 +135,20 @@ namespace MultiCoreEmulator.Cores.NES {
 
             var fileStream = new FileStream(stateFileName, FileMode.OpenOrCreate);
             var binaryWriter = new BinaryWriter(fileStream);
+            
             CPU.Save(binaryWriter);
             PPU.Save(binaryWriter);
             Bus.Save(binaryWriter);
-            fileStream.Close();
             
-            isSaveStateHappening = false;
+            fileStream.Close();
         }
 
         public void LoadState(int slot) {
-            isSaveStateHappening = true;
-            
+            isLoadStateHappening = true;
+            stateSlot = slot;
+        }
+
+        private void InternalLoadState(int slot) {
             string gameName = Rom.Filename.Split('\\').LastOrDefault();
             gameName = gameName.Replace(".nes", "");
             gameName = gameName.Replace(".nez", "");
@@ -141,12 +158,12 @@ namespace MultiCoreEmulator.Cores.NES {
                 return;
             var fileStream = new FileStream(stateFileName, FileMode.Open);
             var binaryReader = new BinaryReader(fileStream);
+            
             CPU.Load(binaryReader);
             PPU.Load(binaryReader);
             Bus.Load(binaryReader);
+            
             fileStream.Close();
-
-            isSaveStateHappening = false;
         }
 
         public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {

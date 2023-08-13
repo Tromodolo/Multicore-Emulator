@@ -252,45 +252,97 @@ namespace NesEmu.Mapper {
         }
 
         public void Save(BinaryWriter writer) {
-            //writer.Write(HasPrgRam);
-            //writer.Write(PrgRomBank1);
-            //writer.Write(PrgRomBank2);
-            //writer.Write(ChrRomBank1);
-            //writer.Write(ChrRomBank2);
-            //writer.Write(ChrRomOffset1);
-            //writer.Write(ChrRomOffset2);
-            //writer.Write(PrgMode);
-            //writer.Write(ChrMode);
-            //writer.Write(ShiftRegister);
-            //writer.Write(ShiftCount);
-            //writer.Write(CurrentPC);
-            //writer.Write(LastPC);
-            //writer.Write(LastControl);
-            //writer.Write((int)CurrentMirroring);
-            //writer.Write(ChrRom);
-            //writer.Write(PrgRom);
-            //writer.Write(PrgRam);
+            UpdateOffsets();
+            
+            writer.Write(HasPrgRam);
+            
+            writer.Write(PrgMode);
+            writer.Write(ChrMode);
+            
+            writer.Write(NextBankUpdate);
+            
+            writer.Write(BankRegisters[0]);
+            writer.Write(BankRegisters[1]);
+            writer.Write(BankRegisters[2]);
+            writer.Write(BankRegisters[3]);
+            writer.Write(BankRegisters[4]);
+            writer.Write(BankRegisters[5]);
+            writer.Write(BankRegisters[6]);
+            writer.Write(BankRegisters[7]);
+            
+            // writer.Write(PrgOffsets[0]);
+            // writer.Write(PrgOffsets[1]);
+            // writer.Write(PrgOffsets[2]);
+            // writer.Write(PrgOffsets[3]);
+            //
+            // writer.Write(ChrOffsets[0]);
+            // writer.Write(ChrOffsets[1]);
+            // writer.Write(ChrOffsets[2]);
+            // writer.Write(ChrOffsets[3]);
+            // writer.Write(ChrOffsets[4]);
+            // writer.Write(ChrOffsets[5]);
+            // writer.Write(ChrOffsets[6]);
+            // writer.Write(ChrOffsets[7]);
+            
+            writer.Write(LastBank);
+
+            writer.Write(IRQLatch);
+            writer.Write(IRQCounter);
+            writer.Write(IRQEnabled);
+            writer.Write(IRQReload);
+            
+            writer.Write(IRQPending);
+            
+            writer.Write((int)CurrentMirroring);
+            
+            writer.Write(LastAddress);
         }
 
         public void Load(BinaryReader reader) {
-            //HasPrgRam = reader.ReadBoolean();
-            //PrgRomBank1 = reader.ReadInt32();
-            //PrgRomBank2 = reader.ReadInt32();
-            //ChrRomBank1 = reader.ReadInt32();
-            //ChrRomBank2 = reader.ReadInt32();
-            //ChrRomOffset1 = reader.ReadInt32();
-            //ChrRomOffset2 = reader.ReadInt32();
-            //PrgMode = reader.ReadInt32();
-            //ChrMode = reader.ReadInt32();
-            //ShiftRegister = reader.ReadInt32();
-            //ShiftCount = reader.ReadInt32();
-            //CurrentPC = reader.ReadInt32();
-            //LastPC = reader.ReadInt32();
-            //LastControl = reader.ReadInt32();
-            //CurrentMirroring = (ScreenMirroring)reader.ReadInt32();
-            //ChrRom = reader.ReadBytes(ChrRom.Length);
-            //PrgRom = reader.ReadBytes(PrgRom.Length);
-            //PrgRam = reader.ReadBytes(PrgRam.Length);
+            HasPrgRam = reader.ReadBoolean();
+            
+            PrgMode = reader.ReadBoolean();
+            ChrMode = reader.ReadBoolean();
+            
+            NextBankUpdate = reader.ReadInt32();
+            
+            BankRegisters[0] = reader.ReadInt32();
+            BankRegisters[1] = reader.ReadInt32();
+            BankRegisters[2] = reader.ReadInt32();
+            BankRegisters[3] = reader.ReadInt32();
+            BankRegisters[4] = reader.ReadInt32();
+            BankRegisters[5] = reader.ReadInt32();
+            BankRegisters[6] = reader.ReadInt32();
+            BankRegisters[7] = reader.ReadInt32();
+            
+            // PrgOffsets[0] = reader.ReadInt32();
+            // PrgOffsets[1] = reader.ReadInt32();
+            // PrgOffsets[2] = reader.ReadInt32();
+            // PrgOffsets[3] = reader.ReadInt32();
+            //
+            // ChrOffsets[0] = reader.ReadInt32();
+            // ChrOffsets[1] = reader.ReadInt32();
+            // ChrOffsets[2] = reader.ReadInt32();
+            // ChrOffsets[3] = reader.ReadInt32();
+            // ChrOffsets[4] = reader.ReadInt32();
+            // ChrOffsets[5] = reader.ReadInt32();
+            // ChrOffsets[6] = reader.ReadInt32();
+            // ChrOffsets[7] = reader.ReadInt32();
+            
+            LastBank = reader.ReadInt32();
+
+            IRQLatch = reader.ReadInt32();
+            IRQCounter = reader.ReadInt32();
+            IRQEnabled = reader.ReadBoolean();
+            IRQReload = reader.ReadBoolean();
+            
+            IRQPending = reader.ReadBoolean();
+            
+            CurrentMirroring = (ScreenMirroring)reader.ReadInt32();
+            
+            LastAddress = reader.ReadInt32();
+
+            UpdateOffsets();
         }
     }
 }

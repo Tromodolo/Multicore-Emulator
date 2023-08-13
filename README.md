@@ -14,6 +14,7 @@ If you want to run this project, simply clone it and build it using `dotnet buil
 
 # Known Problems
 - Certain games in Mapper 3 (CNROM) fail to start or render properly. Unsure why
+- Save states for MMC3 games behave strangely. To recreate, save a state in the first level, then restart emulator and try to load. It should hang
 
 # To Do
 - Implement more mappers
