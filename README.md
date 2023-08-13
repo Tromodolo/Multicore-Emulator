@@ -13,9 +13,7 @@ If you want to run this project, simply clone it and build it using `dotnet buil
 - MMC3 (4)
 
 # Known Problems
-- Scrolling vertically in games shows wrong tiles at top/bottom of screen.
-
-  Examples of this: Megaman 2/Final Fantasy
+- Certain games in Mapper 3 (CNROM) fail to start or render properly. Unsure why
 
 # To Do
 - Implement more mappers
