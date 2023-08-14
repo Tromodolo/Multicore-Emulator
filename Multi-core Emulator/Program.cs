@@ -18,6 +18,9 @@ public static class Program {
 
     static short[] AudioSamplesOut;
     static string CurrentFileName;
+    
+    static string OriginalWindowTitle;
+    static int OriginalTitleResetTimer;
 
     public static void Main(string[] args) {
         var picker = new ConsoleFilePicker(new[] {
@@ -45,8 +48,9 @@ public static class Program {
             Console.WriteLine($"There was an issue initializing  {SDL_GetError()}");
             return;
         }
-        
-        SDL_SetWindowTitle(CoreWindow, $"Playing {CurrentFileName}");
+
+        OriginalWindowTitle = $"Playing {CurrentFileName}";
+        SDL_SetWindowTitle(CoreWindow, OriginalWindowTitle);
 
         nint activeController;
         for (var i = 0; i < SDL_NumJoysticks(); i++) {
@@ -121,6 +125,13 @@ public static class Program {
         SDLAudioSpec.samples = 1024;
         SDLAudioSpec.format = AUDIO_S16LSB;
         SDLAudioSpec.callback = (userdata, stream, num) => {
+            if (OriginalTitleResetTimer > 0) {
+                OriginalTitleResetTimer--;
+                if (OriginalTitleResetTimer <= 0) {
+                    SDL_SetWindowTitle(CoreWindow, OriginalWindowTitle);
+                }
+            }
+            
             unsafe {
                 var streamPtr = (short*)stream;
                 // Not sure why num is double the required amount here?
@@ -205,9 +216,12 @@ public static class Program {
     private static void HandleSaveState(EmulatorCoreBase core, int slot) {
         if (IsShiftPressed) {
             core.SaveState(slot);
+            SDL_SetWindowTitle(CoreWindow, $"Saved to state {slot}");
         } else {
             core.LoadState(slot);
+            SDL_SetWindowTitle(CoreWindow, $"Loaded from state {slot}");
         }
+        OriginalTitleResetTimer = 60;
     }
 
     // Key/button events used for global functions such as savestates or framecap
