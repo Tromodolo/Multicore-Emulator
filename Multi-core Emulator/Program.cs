@@ -249,7 +249,34 @@ public static class Program {
     private static void HandleKeyUp(EmulatorCoreBase core, SDL_KeyboardEvent keyboardEvent) {
         switch (keyboardEvent.keysym.sym) {
             case SDL_Keycode.SDLK_ESCAPE:
-                IsRunning = false;
+                SDL_PauseAudioDevice((uint)AudioDeviceId, 1);
+                
+                var messageBoxData = new SDL_MessageBoxData {
+                    flags = SDL_MessageBoxFlags.SDL_MESSAGEBOX_WARNING,
+                    window = CoreWindow,
+                    title = "Are you sure?",
+                    message = "Are you sure you want to stop the emulation?",
+                    numbuttons = 2,
+                    buttons = new SDL_MessageBoxButtonData[2] {
+                        new SDL_MessageBoxButtonData {
+                            flags = SDL_MessageBoxButtonFlags.SDL_MESSAGEBOX_BUTTON_RETURNKEY_DEFAULT,
+                            buttonid = 0,
+                            text = "No"
+                        },
+                        new SDL_MessageBoxButtonData {
+                            buttonid = 1,
+                            text = "Yes"
+                        },
+                    }
+                };
+
+                SDL_ShowMessageBox(ref messageBoxData, out int pressedButton);
+                if (pressedButton == 1) {
+                    IsRunning = false;
+                } else {
+                    SDL_PauseAudioDevice((uint)AudioDeviceId, 0);
+                }
+                
                 break;
             case SDL_Keycode.SDLK_LSHIFT:
                 IsShiftPressed = false;
