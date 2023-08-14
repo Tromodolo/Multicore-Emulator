@@ -252,9 +252,9 @@ namespace NesEmu.Mapper {
         }
 
         public void Save(BinaryWriter writer) {
-            UpdateOffsets();
-            
             writer.Write(HasPrgRam);
+            
+            writer.Write(PrgRam);
             
             writer.Write(PrgMode);
             writer.Write(ChrMode);
@@ -269,20 +269,6 @@ namespace NesEmu.Mapper {
             writer.Write(BankRegisters[5]);
             writer.Write(BankRegisters[6]);
             writer.Write(BankRegisters[7]);
-            
-            // writer.Write(PrgOffsets[0]);
-            // writer.Write(PrgOffsets[1]);
-            // writer.Write(PrgOffsets[2]);
-            // writer.Write(PrgOffsets[3]);
-            //
-            // writer.Write(ChrOffsets[0]);
-            // writer.Write(ChrOffsets[1]);
-            // writer.Write(ChrOffsets[2]);
-            // writer.Write(ChrOffsets[3]);
-            // writer.Write(ChrOffsets[4]);
-            // writer.Write(ChrOffsets[5]);
-            // writer.Write(ChrOffsets[6]);
-            // writer.Write(ChrOffsets[7]);
             
             writer.Write(LastBank);
 
@@ -300,6 +286,8 @@ namespace NesEmu.Mapper {
 
         public void Load(BinaryReader reader) {
             HasPrgRam = reader.ReadBoolean();
+
+            PrgRam = reader.ReadBytes(PrgRam.Length);
             
             PrgMode = reader.ReadBoolean();
             ChrMode = reader.ReadBoolean();
@@ -314,20 +302,6 @@ namespace NesEmu.Mapper {
             BankRegisters[5] = reader.ReadInt32();
             BankRegisters[6] = reader.ReadInt32();
             BankRegisters[7] = reader.ReadInt32();
-            
-            // PrgOffsets[0] = reader.ReadInt32();
-            // PrgOffsets[1] = reader.ReadInt32();
-            // PrgOffsets[2] = reader.ReadInt32();
-            // PrgOffsets[3] = reader.ReadInt32();
-            //
-            // ChrOffsets[0] = reader.ReadInt32();
-            // ChrOffsets[1] = reader.ReadInt32();
-            // ChrOffsets[2] = reader.ReadInt32();
-            // ChrOffsets[3] = reader.ReadInt32();
-            // ChrOffsets[4] = reader.ReadInt32();
-            // ChrOffsets[5] = reader.ReadInt32();
-            // ChrOffsets[6] = reader.ReadInt32();
-            // ChrOffsets[7] = reader.ReadInt32();
             
             LastBank = reader.ReadInt32();
 
