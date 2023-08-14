@@ -4,13 +4,21 @@
 
 If you want to run this project, simply clone it and build it using `dotnet build`
 
-
 # Implemented Mappers
 - NROM (0)
 - MMC1 (1)
 - UxROM (2)
 - CNROM (3)
 - MMC3 (4)
+
+
+# Controls
+- WASD for D-Pad
+- J = A
+- K = B
+- Enter = Start
+- Right Shift = Select
+- Also has Controller Support
 
 # Known Problems
 - Certain games in Mapper 3 (CNROM) fail to start or render properly. Unsure why
