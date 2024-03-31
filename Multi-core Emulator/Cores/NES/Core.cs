@@ -374,7 +374,7 @@ namespace MultiCoreEmulator.Cores.NES {
             foreach (byte oamEntry in OamData) {
                 if (index >= 64) {
                     break;
-                }
+                }f
 
                 byte yPosition = OamData[index * 4];
                 byte tileIndex = OamData[(index * 4) + 1];

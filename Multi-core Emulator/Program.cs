@@ -321,6 +321,9 @@ public static class Program {
         if (fileName.EndsWith(".nez") || fileName.EndsWith(".nes")) {
             return new Cores.NES.Core();
         }
+        if (fileName.EndsWith(".gbc") || fileName.EndsWith(".gb")) {
+            return new Cores.GBC.Core();
+        }
         return null;
     }
 }
