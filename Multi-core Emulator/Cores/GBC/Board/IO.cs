@@ -54,7 +54,7 @@ namespace MultiCoreEmulator.Cores.GBC {
             }
             // Timer control
             if (address == 0xFF07) {
-
+                TimerControl = value;
             }
 
             // APU channel controls
@@ -160,13 +160,16 @@ namespace MultiCoreEmulator.Cores.GBC {
             }
 
             // Falling edge
-            if (TimerValue == 0 && LastTimerValue == 1) {
-                if (TimerCounter == 0xFF) {
-                    TimerCounter = TimerModulo;
-                    TriggerInterrupt(InterruptType.Timer);
-                } else {
-                    TimerCounter++;
+            if (LastTimerValue == 1 && TimerValue == 0) {
+                switch (TimerCounter) {
+                    case 0xFF:
+                        TriggerInterrupt(InterruptType.Timer);
+                        break;
+                    case 0x00: // Edge case where modulo isn't copied until next tick
+                        TimerCounter = TimerModulo;
+                        break;
                 }
+                TimerCounter++;
             }
 
             LastTimerValue = TimerValue;

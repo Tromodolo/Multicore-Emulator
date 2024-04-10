@@ -182,12 +182,14 @@ namespace MultiCoreEmulator.Cores.GBC {
             board.TickInterruptTimer();
 
             // if (cy == 4864292) {
-            if (cy == 824584) {
+            if (PC == 0xC005) {
                 var x = 2;
                 x++;
             }
 
-            if (IsHalted && !board.HasPendingInterrupt()) {
+            if (IsHalted && !board.PeekPendingInterrupt()) {
+                CyclesLeft = 1 * 4;
+                cy += (ulong)(CyclesLeft / 2);
                 return;
             }
             IsHalted = false;
@@ -230,7 +232,7 @@ namespace MultiCoreEmulator.Cores.GBC {
             }
 
             sw.Write($"{PC:X4}:  00        nop                 A:{A:x2} F:{(int)F:x2} B:{B:x2} C:{C:x2} D:{D:x2} E:{E:x2} H:{H:x2} L:{L:x2} LY:{board.Display.LY:x2} SP:{SP:x4}  Cy:{cy}\r\n");
-            fs.Flush();
+            sw.Flush();
 
             // sw.Write($"{PC:X4}:");
             // sw.BaseStream.Position += 30;

@@ -85,6 +85,7 @@ internal class Display {
 	byte WX;
 
 	internal int DotsDrawn = -56;
+	internal int DotsDrawnTotal = 0;
 	bool FirstLine;
 
 	int RenderMode = 2;
@@ -205,6 +206,7 @@ internal class Display {
 		}
 
 		DotsDrawn++;
+		DotsDrawnTotal++;
 
 		switch (RenderMode) {
 			case 0: {

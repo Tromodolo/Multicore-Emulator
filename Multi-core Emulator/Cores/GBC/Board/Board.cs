@@ -71,16 +71,12 @@ namespace MultiCoreEmulator.Cores.GBC {
             
             AudioBuffer = new CircleBuffer<short>(735 * 3);
 
-            // RequestedInterrupts = (InterruptType)0xE1;
-
-            // TimerControl = 0b100;
-
             BootRomEnabled = true;
         }
 
         public void Clock() {
-            CPU.Clock(this);
             Display.Clock(this);
+            CPU.Clock(this);
             TickTimer();
             MasterClock++;
         }
@@ -126,7 +122,7 @@ namespace MultiCoreEmulator.Cores.GBC {
             if (address == 0xFFFF) {// Enabled interrupts
                 ActiveInterrupts = (InterruptType)value;
             } else if (address == 0xFF0F) { // Requested interrupts
-                RequestedInterrupts = (InterruptType)(0xe0 | value);
+                RequestedInterrupts = (InterruptType)value;
             } else if (address <= 0x3FFF) { // ROM Bank 0-NN
                 Cart.Write(address, value);
             } else if (address >= 0x8000 && address <= 0x9FFF) {// VRAM Bank 0/1
@@ -148,6 +144,11 @@ namespace MultiCoreEmulator.Cores.GBC {
             } else if (address >= 0xFF80 && address <= 0xFFFE) {// High RAM
                 HRam.Span[address % 0xFF80] = value;
             }
+        }
+
+        // Used by HALT to check if there is a pending interrupt independent of the enable flag
+        public bool PeekPendingInterrupt() {
+            return (ActiveInterrupts & RequestedInterrupts) > 0;
         }
 
         public bool HasPendingInterrupt() {
