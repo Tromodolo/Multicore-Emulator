@@ -44,6 +44,15 @@ struct PixelData {
 	public bool BackgroundPriority; // holds the value of the OBJ-to-BG Priority bit
 }
 
+[Flags]
+enum STATInterrupt {
+	None = 0,
+	Mode0 = 0x08,
+	Mode1 = 0x10,
+	Mode2 = 0x20,
+	LYC = 0x40
+}
+
 internal class Display {
 	readonly uint[] frameBuffer = new uint[SCREEN_WIDTH * SCREEN_HEIGHT];
 
@@ -62,12 +71,8 @@ internal class Display {
           2: Searching OAM
           3: Transferring Data to LCD Controller
 	 */
-	bool LYCStatInterruptEnabled;			// 6
-	bool Mode2OAMStatInterruptEnabled;		// 5
-	bool Mode1VBlankStatInterruptEnabled;	// 4
-	bool Mode0HBlankStatInterruptEnabled;	// 3
-	bool LYCEqual;					// 2
-	// 1 is below in rendering logic
+	STATInterrupt EnabledSTATInterrupts;
+	bool LYCEqual;
 
 	// Internal rendering logic
 	// LY = "Scanline"
@@ -130,6 +135,9 @@ internal class Display {
 
 				Control.BGWindowPriority = (value & 0x01) > 0;
 				break;
+			case 0xFF41:
+				EnabledSTATInterrupts = (STATInterrupt)(value & 0x78);
+				break;
 			case 0xFF42:
 				SCY = value;
 				break;
@@ -167,6 +175,8 @@ internal class Display {
 		switch (address) {
 			case 0xFF40:
 				return Control.Value;
+			case 0xFF41:
+				return (byte)((int)EnabledSTATInterrupts | (LYCEqual ? 0x04 : 0) | RenderMode & 0x3);
 			case 0xFF42:
 				return SCY;
 			case 0xFF43:
@@ -382,13 +392,15 @@ internal class Display {
 		switch (LY) {
 			case 143:
 				// Entering VBlank, set interrupt
-				board.TriggerInterrupt(InterruptType.VBlank);
 				RenderMode = 1;
+				board.TriggerInterrupt(InterruptType.VBlank);
+				TriggerSTAT(board, STATInterrupt.Mode1);
 				break;
 			case 153:
 				LY = 0;
 				RenderMode = 2;
 				FirstLine = true;
+				TriggerSTAT(board, STATInterrupt.Mode2);
 				break;
 		}
 
@@ -396,10 +408,21 @@ internal class Display {
 			case 160:
 				LX = 0;
 				RenderMode = 0;
+				TriggerSTAT(board, STATInterrupt.Mode0);
 				break;
 		}
 
+		if (!LYCEqual && (LY == LYC)) {
+			TriggerSTAT(board, STATInterrupt.LYC);
+		}
+
 		LYCEqual = LY == LYC;
+	}
+
+	void TriggerSTAT(Board board, STATInterrupt interrupt) {
+		if ((EnabledSTATInterrupts & interrupt) == interrupt) {
+			board.TriggerInterrupt(InterruptType.LCD);
+		}
 	}
 
 	public void Draw(ref nint renderer, ref nint texture) {
