@@ -1,12 +1,10 @@
-﻿using MultiCoreEmulator.Utility.SDL;
-using static SDL2.SDL;
-
-namespace MultiCoreEmulator.Cores {
+﻿namespace MultiCoreEmulator.Cores {
     public interface EmulatorCoreBase {
-        public nint InitializeWindow();
-        public void CloseWindow();
+        public int WindowWidth { get; }
+        public int WindowHeight { get; }
+
         public void LoadBytes(string fileName, byte[] bytes);
-        public void ClockSamples(int numAudioSamples);
+        public void ClockSamples(int numAudioSamples, ref GraphicsDevice gd, ref Texture tex);
         public void Reset();
         public short[] GetSamples(int numAudioSamples);
         public void SaveState(int slot);
@@ -18,6 +16,8 @@ namespace MultiCoreEmulator.Cores {
         public void HandleButtonDown(SDL_GameControllerButton button);
         public void HandleButtonUp(SDL_GameControllerButton button);
 
-        public void RenderDebugView(DebugWindow debugWindow);
+        public void DrawDebugInfo();
+
+        public void DrawInstructionLog();
     }
 }

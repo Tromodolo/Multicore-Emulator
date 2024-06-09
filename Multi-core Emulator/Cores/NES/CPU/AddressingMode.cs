@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NesEmu.CPU {
+﻿namespace NesEmu.CPU {
     public enum AddressingMode {
         Immediate,
         ZeroPage,

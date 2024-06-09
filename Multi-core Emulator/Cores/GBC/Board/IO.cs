@@ -1,12 +1,4 @@
-﻿using MultiCoreEmulator.Utility;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Runtime.CompilerServices;
 
 namespace MultiCoreEmulator.Cores.GBC {
     internal partial class Board {

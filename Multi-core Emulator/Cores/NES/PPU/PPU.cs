@@ -1,5 +1,4 @@
 using NesEmu.Rom;
-using SDL2;
 
 namespace NesEmu.PPU {
     struct SpriteEntry {
@@ -585,7 +584,7 @@ namespace NesEmu.PPU {
                 }
             }
 
-            (byte, byte, byte) color;
+            (byte r, byte g, byte b) color;
             if (isBg) {
                 if (!backgroundLeftColumn && dotsDrawn <= 8) {
                     color = Palette.SystemPalette[PALETTE[0] & 0x3f];
@@ -609,7 +608,7 @@ namespace NesEmu.PPU {
                 frameBuffer[
                     pixelX +
                     pixelY * SCREEN_WIDTH
-                ] = (uint)((color.Item1 << 16) | (color.Item2 << 8 | (color.Item3 << 0)));
+                ] = (uint)(0xFF << 24 | color.b << 16 | color.g << 8 | color.r);
             }
 
             dotsDrawn++;
@@ -909,23 +908,19 @@ namespace NesEmu.PPU {
             renderSprites = (maskRegister & (1 << 4)) > 0;
         }
         
-        public void DrawFrame(ref nint renderer, ref nint Texture) {
-            unsafe {
-                SDL.SDL_Rect rect;
-                rect.w = SCREEN_WIDTH * 3;
-                rect.h = (SCREEN_HEIGHT - SCREEN_OFFSET_TOP - SCREEN_OFFSET_BOTTOM) * 3;
-                rect.x = 0;
-                rect.y = 0;
-
-                fixed (uint* pArray = frameBuffer) {
-                    var intPtr = new nint(pArray);
-
-                    _ = SDL.SDL_UpdateTexture(Texture, ref rect, intPtr, SCREEN_WIDTH * 4);
-                }
-
-                _ = SDL.SDL_RenderCopy(renderer, Texture, nint.Zero, ref rect);
-                SDL.SDL_RenderPresent(renderer);
-            }
+        public void DrawFrame(ref GraphicsDevice gd, ref Texture tex) {
+            gd.UpdateTexture(
+                tex,
+                frameBuffer,
+                0,
+                0,
+                0,
+                SCREEN_WIDTH,
+                SCREEN_HEIGHT - SCREEN_OFFSET_TOP - SCREEN_OFFSET_BOTTOM,
+                1,
+                0,
+                0
+            );
         }
     }
 }

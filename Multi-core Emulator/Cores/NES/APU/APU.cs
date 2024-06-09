@@ -11,8 +11,6 @@
 // TODO - refactor length counter to be separate component
 
 using NesEmu.CPU;
-using System;
-using System.Runtime.CompilerServices;
 
 namespace BizHawk.NES {
 	public sealed class APU {

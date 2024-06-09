@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NesEmu.CPU {
+﻿namespace NesEmu.CPU {
     public partial class NesCpu {
         // public void MemWrite(ushort address, byte value) {
         //     Bus.MemWrite(address, value);

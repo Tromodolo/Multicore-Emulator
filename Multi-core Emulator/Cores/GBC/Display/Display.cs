@@ -1,6 +1,4 @@
-﻿using SDL2;
-using System.Runtime.CompilerServices;
-using static MultiCoreEmulator.Cores.GBC.Core;
+﻿using static MultiCoreEmulator.Cores.GBC.Core;
 
 namespace MultiCoreEmulator.Cores.GBC;
 
@@ -425,22 +423,18 @@ internal class Display {
 		}
 	}
 
-	public void Draw(ref nint renderer, ref nint texture) {
-		unsafe {
-			SDL.SDL_Rect rect;
-			rect.w = SCREEN_WIDTH * SCREEN_MULTIPLIER;
-			rect.h = SCREEN_HEIGHT * SCREEN_MULTIPLIER;
-			rect.x = 0;
-			rect.y = 0;
-
-			fixed (uint* pArray = frameBuffer) {
-				var intPtr = new nint(pArray);
-
-				_ = SDL.SDL_UpdateTexture(texture, ref rect, intPtr, SCREEN_WIDTH * 4);
-			}
-
-			_ = SDL.SDL_RenderCopy(renderer, texture, nint.Zero, ref rect);
-			SDL.SDL_RenderPresent(renderer);
-		}
+	public void Draw(ref GraphicsDevice gd, ref Texture tex) {
+		gd.UpdateTexture(
+			tex,
+			frameBuffer,
+			0,
+			0,
+			0,
+			SCREEN_WIDTH,
+			SCREEN_HEIGHT,
+			1,
+			0,
+			0
+		);
 	}
 }

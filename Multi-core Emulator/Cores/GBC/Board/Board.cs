@@ -1,10 +1,4 @@
 ﻿using MultiCoreEmulator.Utility;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace MultiCoreEmulator.Cores.GBC {
     [Flags]
@@ -81,8 +75,8 @@ namespace MultiCoreEmulator.Cores.GBC {
             MasterClock++;
         }
 
-        public void Draw(ref nint renderer, ref nint texture) {
-            Display.Draw(ref renderer, ref texture);
+        public void Draw(ref GraphicsDevice gd, ref Texture tex) {
+            Display.Draw(ref gd, ref tex);
         }
 
         public byte Read(ushort address) {

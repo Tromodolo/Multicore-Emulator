@@ -1,10 +1,4 @@
-﻿using NesEmu.CPU;
-using System;
-using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NesEmu {
+﻿namespace NesEmu {
     // public static class Trace {
     //     public static string Log(NesCpu cpu) {
     //         var opcode = cpu.MemRead(cpu.ProgramCounter);

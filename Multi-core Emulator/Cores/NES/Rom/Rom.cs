@@ -1,5 +1,4 @@
 using NesEmu.Mapper;
-using System;
 
 namespace NesEmu.Rom {
     public enum ScreenMirroring {

@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NesEmu.CPU {
+﻿namespace NesEmu.CPU {
     public static class OpCodeList {
         public static readonly OpCode[] OpCodes = new OpCode[] {
             new OpCode(0x00, Op.BRK, 1, 7, AddressingMode.NoneAddressing),

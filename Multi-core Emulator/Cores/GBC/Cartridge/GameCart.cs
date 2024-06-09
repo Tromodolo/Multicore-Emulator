@@ -1,10 +1,6 @@
 ﻿using MultiCoreEmulator.Cores.GBC.Cartridge.Mapper;
-using System;
-using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace MultiCoreEmulator.Cores.GBC {
     internal class GameCart {

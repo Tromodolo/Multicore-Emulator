@@ -1,13 +1,4 @@
-﻿using NesEmu.Bus;
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NesEmu.CPU {
+﻿namespace NesEmu.CPU {
 
     [Flags]
     public enum Flags {

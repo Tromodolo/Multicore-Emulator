@@ -1,13 +1,4 @@
-﻿using NesEmu.CPU;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace NesEmu.Bus {
+﻿namespace NesEmu.Bus {
     public partial class Bus {
         const ushort RAM_MIRRORS_END = 0x1fff;
         const ushort PPU_MIRRORS_END = 0x3fff;
