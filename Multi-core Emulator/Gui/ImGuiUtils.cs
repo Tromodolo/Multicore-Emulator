@@ -10,6 +10,9 @@ public static class ImGuiUtils {
 	public static bool FilePicker(out string filename) {
 		filename = "";
 
+		ImGui.NewLine();
+		ImGui.Text("Select file");
+
 		var drives = DriveInfo.GetDrives();
 		foreach (var drive in drives) {
 			if (ImGui.Button(drive.RootDirectory.FullName)) {
@@ -42,7 +45,7 @@ public static class ImGuiUtils {
 
 		ImGui.NewLine();
 		ImGui.PushItemWidth(-1);
-		if (!ImGui.ListBox("", ref CurrentSelectedFile, CurrentOptions.ToArray(), CurrentOptions.Count)) {
+		if (!ImGui.ListBox("File picker", ref CurrentSelectedFile, CurrentOptions.ToArray(), CurrentOptions.Count, 20)) {
 			return false;
 		}
 

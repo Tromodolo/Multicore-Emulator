@@ -15,9 +15,14 @@ using Veldrid.StartupUtilities;
 namespace MultiCoreEmulator;
 
 public static class Program {
-    static string UsedAudioDevice;
     static SDL_AudioSpec SDLAudioSpec;
+
+    static int SelectedAudioDevice;
+    static List<string> AudioDevices;
     static int AudioDeviceId;
+
+    static int SelectedController;
+    static List<string> Controllers;
     static SDL_GameController ActiveController;
 
     static bool IsShiftPressed;
@@ -36,6 +41,7 @@ public static class Program {
     static ImGuiRenderer ImGuiRenderer;
 
     static Stopwatch Stopwatch;
+
 
     public static void Main(string[] args) {
         InitImGui();
@@ -68,9 +74,15 @@ public static class Program {
         core.LoadBytes(fileName, fileByteArr);
 
         EmuCore = core;
+
+        // Unpause audio, starting the audio thread
+        SDL_PauseAudioDevice((uint)AudioDeviceId, 0);
     }
 
     private static void InitSDL() {
+        AudioDevices = new List<string>();
+        Controllers = new List<string>();
+
         SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
         SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
         SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
@@ -79,8 +91,7 @@ public static class Program {
             return;
         }
 
-        // Use Veldrid here to handle gamepad through that instead of ourselves
-        // This makes sure it comes up in ProcessSDLEvent
+        // Register first found controller and audio device
         for (var i = 0; i < SDL_NumJoysticks(); i++) {
             if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
                 continue;
@@ -89,79 +100,17 @@ public static class Program {
             break;
         }
 
-        UsedAudioDevice = "";
-        if (File.Exists("audio_device.conf")) {
-            UsedAudioDevice = File.ReadAllText("audio_device.conf");
-        }
-
-        if (string.IsNullOrEmpty(UsedAudioDevice)) {
-            //Console.CursorTop++;
-            Console.Clear();
-
-            var devices = new List<string>();
-            int count = SDL_GetNumAudioDevices(0);
-            for (var i = 0; i < count; ++i) {
-                devices.Add(SDL_GetAudioDeviceName(i, 0));
-            }
-
-            Console.WriteLine($"Select your audio device: ");
-
-            var marked = 0;
-            int selected = -1;
-            int initialRow = Console.CursorTop;
-            while (selected < 0) {
-                Console.CursorTop = initialRow;
-                var index = 0;
-                foreach (string dev in devices) {
-                    if (index == marked) {
-                        Console.BackgroundColor = ConsoleColor.DarkGreen;
-                        Console.ForegroundColor = ConsoleColor.Black;
-                        Console.Write($"> {dev}\n");
-                        Console.BackgroundColor = ConsoleColor.Black;
-                        Console.ForegroundColor = ConsoleColor.White;
-                    } else {
-                        Console.Write($"  {dev}\n");
-                    }
-                    index++;
-                }
-
-                var nextKey = Console.ReadKey();
-                switch (nextKey.Key) {
-                    case ConsoleKey.DownArrow when marked == devices.Count - 1:
-                        continue;
-                    case ConsoleKey.DownArrow:
-                        marked++;
-                        break;
-                    case ConsoleKey.UpArrow when marked == 0:
-                        continue;
-                    case ConsoleKey.UpArrow:
-                        marked--;
-                        break;
-                    case ConsoleKey.Enter:
-                        selected = marked;
-                        break;
-                    default:
-                        break;
-                }
-            }
-            UsedAudioDevice = devices[selected];
-            File.WriteAllText("audio_device.conf", UsedAudioDevice);
-        }
-
         SDLAudioSpec.channels = 1;
         SDLAudioSpec.freq = 44100;
         SDLAudioSpec.samples = 1024;
         SDLAudioSpec.format = AUDIO_S16LSB;
         SDLAudioSpec.callback = CoreAudioCallback;
 
-        AudioDeviceId = (int)SDL_OpenAudioDevice(UsedAudioDevice, 0, ref SDLAudioSpec, out var received, 0);
+        AudioDeviceId = (int)SDL_OpenAudioDevice(null, 0, ref SDLAudioSpec, out var received, 0);
         if (AudioDeviceId == 0) {
             Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
             return;
         }
-
-        Console.WriteLine($"Audio Device Initialized: {UsedAudioDevice}");
-        SDL_PauseAudioDevice((uint)AudioDeviceId, 0);
     }
 
     private static void InitTextures() {
@@ -260,6 +209,49 @@ public static class Program {
             LoadFile(fileName);
             InitTextures();
             return;
+        }
+
+        int numAudioDevices = SDL_GetNumAudioDevices(0);
+        AudioDevices.Clear();
+        for (var i = 0; i < numAudioDevices; ++i) {
+            AudioDevices.Add(SDL_GetAudioDeviceName(i, 0));
+        }
+
+        ImGui.NewLine();
+        ImGui.Text("Audio devices");
+        ImGui.PushItemWidth(-1);
+        if (ImGui.ListBox("Audio devices", ref SelectedAudioDevice, AudioDevices.ToArray(), AudioDevices.Count, 5)) {
+            SDL_PauseAudioDevice((uint)AudioDeviceId, 1);
+            SDL_CloseAudioDevice((uint)AudioDeviceId);
+
+            AudioDeviceId = (int)SDL_OpenAudioDevice(AudioDevices[SelectedAudioDevice], 0, ref SDLAudioSpec, out var received, 0);
+
+            if (AudioDeviceId == 0) {
+                Console.WriteLine($"There was an issue opening the audio device. {SDL_GetError()}");
+                return;
+            }
+
+            // If the audio device is unpaused while there is no game running (and just sending empty buffers to the driver)
+            // It causes the most unholy audio, so thats why this is here
+            if (EmuCore != null) {
+                SDL_PauseAudioDevice((uint)AudioDeviceId, 0);
+            }
+        }
+
+        Controllers.Clear();
+        for (var i = 0; i < SDL_NumJoysticks(); i++) {
+            if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
+                continue;
+            }
+            Controllers.Add(SDL_JoystickNameForIndex(i));
+        }
+
+        ImGui.NewLine();
+        ImGui.Text("Controllers");
+        ImGui.PushItemWidth(-1);
+        if (ImGui.ListBox("Controllers", ref SelectedController, Controllers.ToArray(), Controllers.Count, 5)) {
+            SDL_GameControllerClose(ActiveController.NativePointer);
+            SDL_GameControllerOpen(SelectedController);
         }
 
         if (EmuCore != null) {
