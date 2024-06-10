@@ -3,8 +3,10 @@ global using Veldrid;
 global using static SDL2.SDL;
 
 using MultiCoreEmulator.Cores;
-using MultiCoreEmulator.Utility;
+using MultiCoreEmulator.Gui;
 using SDL2;
+using System.Diagnostics;
+using System.Globalization;
 using System.Numerics;
 using System.Runtime.CompilerServices;
 using Veldrid.Sdl2;
@@ -23,21 +25,21 @@ public static class Program {
     static short[] AudioSamplesOut;
     static string CurrentFileName;
 
-    static EmulatorCoreBase EmuCore;
+    static EmulatorCoreBase? EmuCore;
 
     static Sdl2Window SDL2Window;
-    static Texture Texture;
+    static Texture? Texture;
 
     static GraphicsDevice GraphicsDevice;
     static InputSnapshot InputSnapshot;
     static CommandList CommandList;
     static ImGuiRenderer ImGuiRenderer;
 
+    static Stopwatch Stopwatch;
+
     public static void Main(string[] args) {
-        LoadFile();
         InitImGui();
         InitSDL();
-        InitTextures();
 
         Sdl2Events.Subscribe(ProcessSDLEvent);
         while (SDL2Window.Exists) {
@@ -50,12 +52,7 @@ public static class Program {
         SDL_CloseAudioDevice((uint)AudioDeviceId);
     }
 
-    private static void LoadFile() {
-        var picker = new ConsoleFilePicker(new[] {
-            ".nes", ".nez", ".gbc", ".gb"
-        }, Directory.GetCurrentDirectory());
-        string fileName = picker.OpenSelector();
-
+    private static void LoadFile(string fileName) {
         byte[] fileByteArr;
         try {
             fileByteArr = File.ReadAllBytes(fileName);
@@ -64,9 +61,13 @@ public static class Program {
             throw new("Couldn't find file, try again");
         }
 
+        EmuCore = null;
+
         // Initialize and clock game cores
-        EmuCore = GetApplicableEmulatorCore(fileName);
-        EmuCore.LoadBytes(fileName, fileByteArr);
+        var core =  GetApplicableEmulatorCore(fileName);
+        core.LoadBytes(fileName, fileByteArr);
+
+        EmuCore = core;
     }
 
     private static void InitSDL() {
@@ -164,8 +165,13 @@ public static class Program {
     }
 
     private static void InitTextures() {
-        var windowWidth = EmuCore.WindowWidth;
-        var windowHeight = EmuCore.WindowHeight;
+        if (Texture != null) {
+            Texture.Dispose();
+            Texture = null;
+        }
+
+        var windowWidth = EmuCore!.WindowWidth;
+        var windowHeight = EmuCore!.WindowHeight;
 
         Texture = GraphicsDevice.ResourceFactory.CreateTexture(new TextureDescription {
             Depth = 1,
@@ -209,6 +215,10 @@ public static class Program {
     }
 
     private static void InitImGui() {
+        // Used for deltatime
+        Stopwatch = new Stopwatch();
+        Stopwatch.Start();
+
         VeldridStartup.CreateWindowAndGraphicsDevice(
             new WindowCreateInfo(100, 100, 1370, 900, WindowState.Normal, "Emu :)"),
             out SDL2Window,
@@ -232,47 +242,62 @@ public static class Program {
         const int gameWidth = gameWindowWidth - gameWindowPadding;
         const int gameHeight = gameWindowHeight - gameWindowPadding;
 
-        ImGuiRenderer.Update(1f / 60f, InputSnapshot); // Compute actual value for deltaSeconds.
+        var deltaTime = Stopwatch.Elapsed;
+        Stopwatch.Reset();
+        Stopwatch.Start();
+
+        ImGuiRenderer.Update((float)deltaTime.TotalSeconds, InputSnapshot); // Compute actual value for deltaSeconds.
 
         ImGui.Begin("Info", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
         ImGui.SetWindowPos(Vector2.Zero);
         ImGui.SetWindowSize(new Vector2(300, gameWindowHeight));
-        ImGui.Button("Load file");
 
-        ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
-        ImGui.SetWindowPos(new Vector2(300, 0));
-        ImGui.SetWindowSize(new Vector2(gameWindowWidth, gameWindowHeight));
+        ImGui.Text("ImGui frame-time:");
+        ImGui.SameLine();
+        ImGui.Text(deltaTime.TotalSeconds.ToString(CultureInfo.InvariantCulture));
 
-        var windowRatio = (float)EmuCore.WindowHeight / EmuCore.WindowWidth;
-
-        int imageWidth;
-        int imageHeight;
-        if (windowRatio < 1) {
-            imageWidth = gameWidth;
-            imageHeight = (int)(imageWidth * windowRatio);
-        } else {
-            imageHeight = gameHeight;
-            imageWidth = (int)(imageHeight * windowRatio);
+        if (ImGuiUtils.FilePicker(out var fileName)) {
+            LoadFile(fileName);
+            InitTextures();
+            return;
         }
 
-        ImGui.SetCursorPos(new Vector2(
-            (ImGui.GetWindowSize().X - imageWidth) * 0.5f,
-            (ImGui.GetWindowSize().Y - imageHeight) * 0.5f
-        ));
-        var imgPtr = ImGuiRenderer.GetOrCreateImGuiBinding(GraphicsDevice.ResourceFactory, Texture);
-        ImGui.Image(imgPtr, new Vector2(imageWidth, imageHeight));
+        if (EmuCore != null) {
+            ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
+            ImGui.SetWindowPos(new Vector2(300, 0));
+            ImGui.SetWindowSize(new Vector2(gameWindowWidth, gameWindowHeight));
 
-        ImGui.Begin("Debug Info", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
-        ImGui.SetWindowPos(new Vector2(gameWindowWidth + 300, 0));
-        ImGui.SetWindowSize(new Vector2(300, gameWindowHeight + 180));
+            var windowRatio = (float)EmuCore.WindowHeight / EmuCore.WindowWidth;
 
-        EmuCore.DrawDebugInfo();
+            int imageWidth;
+            int imageHeight;
+            if (windowRatio < 1) {
+                imageWidth = gameWidth;
+                imageHeight = (int)(imageWidth * windowRatio);
+            } else {
+                imageHeight = gameHeight;
+                imageWidth = (int)(imageHeight * windowRatio);
+            }
 
-        ImGui.Begin("Instruction Log", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
-        ImGui.SetWindowPos(new Vector2(0, gameWindowHeight));
-        ImGui.SetWindowSize(new Vector2(gameWindowWidth + 300, 180));
+            ImGui.SetCursorPos(new Vector2(
+                (ImGui.GetWindowSize().X - imageWidth) * 0.5f,
+                (ImGui.GetWindowSize().Y - imageHeight) * 0.5f
+            ));
+            var imgPtr = ImGuiRenderer.GetOrCreateImGuiBinding(GraphicsDevice.ResourceFactory, Texture);
+            ImGui.Image(imgPtr, new Vector2(imageWidth, imageHeight));
 
-        EmuCore.DrawInstructionLog();
+            ImGui.Begin("Debug Info", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
+            ImGui.SetWindowPos(new Vector2(gameWindowWidth + 300, 0));
+            ImGui.SetWindowSize(new Vector2(300, gameWindowHeight + 180));
+
+            EmuCore.DrawDebugInfo();
+
+            ImGui.Begin("Instruction Log", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
+            ImGui.SetWindowPos(new Vector2(0, gameWindowHeight));
+            ImGui.SetWindowSize(new Vector2(gameWindowWidth + 300, 180));
+
+            EmuCore.DrawInstructionLog();
+        }
 
         CommandList.Begin();
         CommandList.SetFramebuffer(GraphicsDevice.MainSwapchain.Framebuffer);
@@ -285,6 +310,10 @@ public static class Program {
 
     private static void CoreAudioCallback(IntPtr userdata, IntPtr stream, int num) {
         unsafe {
+            if (EmuCore == null) {
+                return;
+            }
+
             var streamPtr = (short*)stream;
             // Not sure why num is double the required amount here?
             var numSamples = num / 2;
@@ -308,7 +337,7 @@ public static class Program {
     }
 
     // Key/button events used for global functions such as savestates or framecap
-    private static void HandleKeyDown(EmulatorCoreBase core, SDL.SDL_KeyboardEvent keyboardEvent) {
+    private static void HandleKeyDown(EmulatorCoreBase? core, SDL.SDL_KeyboardEvent keyboardEvent) {
         switch (keyboardEvent.keysym.sym) {
             case SDL.SDL_Keycode.SDLK_F1:
                 HandleSaveState(core, 1);
@@ -340,15 +369,15 @@ public static class Program {
         }
 
         // Pass event down to the core level
-        core.HandleKeyDown(keyboardEvent);
+        core?.HandleKeyDown(keyboardEvent);
     }
 
-    private static void HandleKeyUp(EmulatorCoreBase core, SDL.SDL_KeyboardEvent keyboardEvent) {
+    private static void HandleKeyUp(EmulatorCoreBase? core, SDL.SDL_KeyboardEvent keyboardEvent) {
         // Pass event down to the core level
-        core.HandleKeyUp(keyboardEvent);
+        core?.HandleKeyUp(keyboardEvent);
     }
 
-    private static void HandleButtonDown(EmulatorCoreBase core, SDL.SDL_GameControllerButton button) {
+    private static void HandleButtonDown(EmulatorCoreBase? core, SDL.SDL_GameControllerButton button) {
         switch (button) {
             case SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_GUIDE:
                 core.Reset();
@@ -356,12 +385,12 @@ public static class Program {
         }
 
         // Pass event down to the core level
-        core.HandleButtonDown(button);
+        core?.HandleButtonDown(button);
     }
 
-    private static void HandleButtonUp(EmulatorCoreBase core, SDL.SDL_GameControllerButton button) {
+    private static void HandleButtonUp(EmulatorCoreBase? core, SDL.SDL_GameControllerButton button) {
         // Pass event down to the core level
-        core.HandleButtonUp(button);
+        core?.HandleButtonUp(button);
     }
 
     private static EmulatorCoreBase GetApplicableEmulatorCore(string fileName) {
