@@ -44,8 +44,8 @@ public static class Program {
 
 
     public static void Main(string[] args) {
-        InitImGui();
         InitSDL();
+        InitImGui();
 
         Sdl2Events.Subscribe(ProcessSDLEvent);
         while (SDL2Window.Exists) {
@@ -142,22 +142,22 @@ public static class Program {
         switch (ev.type) {
             case Veldrid.Sdl2.SDL_EventType.KeyDown: {
                 var keyEvent = Unsafe.As<Veldrid.Sdl2.SDL_Event, SDL.SDL_KeyboardEvent>(ref ev);
-                HandleKeyDown(EmuCore, keyEvent);
+                EmuCore?.HandleKeyDown(keyEvent);
                 break;
             }
             case Veldrid.Sdl2.SDL_EventType.KeyUp: {
                 var keyEvent = Unsafe.As<Veldrid.Sdl2.SDL_Event, SDL.SDL_KeyboardEvent>(ref ev);
-                HandleKeyUp(EmuCore, keyEvent);
+                EmuCore?.HandleKeyUp(keyEvent);
                 break;
             }
             case Veldrid.Sdl2.SDL_EventType.ControllerButtonDown: {
                 var buttonEvent = Unsafe.As<Veldrid.Sdl2.SDL_Event, SDL.SDL_ControllerButtonEvent>(ref ev);
-                HandleButtonDown(EmuCore, (SDL.SDL_GameControllerButton)buttonEvent.button);
+                EmuCore?.HandleButtonDown((SDL.SDL_GameControllerButton)buttonEvent.button);
                 break;
             }
             case Veldrid.Sdl2.SDL_EventType.ControllerButtonUp: {
                 var buttonEvent = Unsafe.As<Veldrid.Sdl2.SDL_Event, SDL.SDL_ControllerButtonEvent>(ref ev);
-                HandleButtonUp(EmuCore, (SDL.SDL_GameControllerButton)buttonEvent.button);
+                EmuCore?.HandleButtonUp((SDL.SDL_GameControllerButton)buttonEvent.button);
                 break;
             }
         }
@@ -254,6 +254,14 @@ public static class Program {
             SDL_GameControllerOpen(SelectedController);
         }
 
+        if (ImGuiUtils.SaveStates(out var isSave, out var slot)) {
+            if (isSave) {
+                EmuCore?.SaveState(slot);
+            } else {
+                EmuCore?.LoadState(slot);
+            }
+        }
+
         if (EmuCore != null) {
             ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
             ImGui.SetWindowPos(new Vector2(300, 0));
@@ -318,71 +326,6 @@ public static class Program {
                 }
             }
         }
-    }
-
-    private static void HandleSaveState(EmulatorCoreBase core, int slot) {
-        if (IsShiftPressed) {
-            core.SaveState(slot);
-        } else {
-            core.LoadState(slot);
-        }
-    }
-
-    // Key/button events used for global functions such as savestates or framecap
-    private static void HandleKeyDown(EmulatorCoreBase? core, SDL.SDL_KeyboardEvent keyboardEvent) {
-        switch (keyboardEvent.keysym.sym) {
-            case SDL.SDL_Keycode.SDLK_F1:
-                HandleSaveState(core, 1);
-                break;
-            case SDL.SDL_Keycode.SDLK_F2:
-                HandleSaveState(core, 2);
-                break;
-            case SDL.SDL_Keycode.SDLK_F3:
-                HandleSaveState(core, 3);
-                break;
-            case SDL.SDL_Keycode.SDLK_F4:
-                HandleSaveState(core, 4);
-                break;
-            case SDL.SDL_Keycode.SDLK_F5:
-                HandleSaveState(core, 5);
-                break;
-            case SDL.SDL_Keycode.SDLK_F6:
-                HandleSaveState(core, 6);
-                break;
-            case SDL.SDL_Keycode.SDLK_F7:
-                HandleSaveState(core, 7);
-                break;
-            case SDL.SDL_Keycode.SDLK_F8:
-                HandleSaveState(core, 8);
-                break;
-            case SDL.SDL_Keycode.SDLK_LSHIFT:
-                IsShiftPressed = true;
-                break;
-        }
-
-        // Pass event down to the core level
-        core?.HandleKeyDown(keyboardEvent);
-    }
-
-    private static void HandleKeyUp(EmulatorCoreBase? core, SDL.SDL_KeyboardEvent keyboardEvent) {
-        // Pass event down to the core level
-        core?.HandleKeyUp(keyboardEvent);
-    }
-
-    private static void HandleButtonDown(EmulatorCoreBase? core, SDL.SDL_GameControllerButton button) {
-        switch (button) {
-            case SDL.SDL_GameControllerButton.SDL_CONTROLLER_BUTTON_GUIDE:
-                core.Reset();
-                break;
-        }
-
-        // Pass event down to the core level
-        core?.HandleButtonDown(button);
-    }
-
-    private static void HandleButtonUp(EmulatorCoreBase? core, SDL.SDL_GameControllerButton button) {
-        // Pass event down to the core level
-        core?.HandleButtonUp(button);
     }
 
     private static EmulatorCoreBase GetApplicableEmulatorCore(string fileName) {

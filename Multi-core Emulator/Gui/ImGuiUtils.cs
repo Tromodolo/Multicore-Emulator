@@ -45,7 +45,7 @@ public static class ImGuiUtils {
 
 		ImGui.NewLine();
 		ImGui.PushItemWidth(-1);
-		if (!ImGui.ListBox("File picker", ref CurrentSelectedFile, CurrentOptions.ToArray(), CurrentOptions.Count, 20)) {
+		if (!ImGui.ListBox("File picker", ref CurrentSelectedFile, CurrentOptions.ToArray(), CurrentOptions.Count, 12)) {
 			return false;
 		}
 
@@ -66,5 +66,36 @@ public static class ImGuiUtils {
 
 		filename = selection;
 		return true;
+	}
+
+	public static bool SaveStates(out bool isSave, out int slot) {
+		ImGui.NewLine();
+		ImGui.Text("Save state");
+
+		for (int i = 1; i <= 5; i++) {
+			if (ImGui.Button($"{i.ToString()}##Save", new Vector2(50, 30))) {
+				isSave = true;
+				slot = i;
+				return true;
+			}
+			ImGui.SameLine();
+		}
+
+		ImGui.NewLine();
+		ImGui.NewLine();
+		ImGui.Text("Load state");
+
+		for (int i = 1; i <= 5; i++) {
+			if (ImGui.Button($"{i.ToString()}##Load", new Vector2(50, 30))) {
+				isSave = false;
+				slot = i;
+				return true;
+			}
+			ImGui.SameLine();
+		}
+
+		isSave = false;
+		slot = -1;
+		return false;
 	}
 }
