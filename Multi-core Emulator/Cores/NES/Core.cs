@@ -271,13 +271,5 @@ namespace MultiCoreEmulator.Cores.NES {
 
             Bus.UpdateControllerState(currentKeys);
         }
-
-        public void DrawDebugInfo() {
-
-        }
-
-        public void DrawInstructionLog() {
-
-        }
     }
 }

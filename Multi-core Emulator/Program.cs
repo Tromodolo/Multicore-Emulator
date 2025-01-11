@@ -169,7 +169,7 @@ public static class Program {
         Stopwatch.Start();
 
         VeldridStartup.CreateWindowAndGraphicsDevice(
-            new WindowCreateInfo(100, 100, 1370, 900, WindowState.Normal, "Emu :)"),
+            new WindowCreateInfo(100, 100, 1068, 720, WindowState.Normal, "Emu :)"),
             out SDL2Window,
             out GraphicsDevice);
 
@@ -184,7 +184,7 @@ public static class Program {
 
     private static void UpdateImGui() {
         const int gameWindowWidth = 768;
-        const int gameWindowHeight = 720;
+        const int gameWindowHeight = 768;
 
         const int gameWindowPadding = 32;
 
@@ -263,7 +263,7 @@ public static class Program {
         }
 
         if (EmuCore != null) {
-            ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
+            ImGui.Begin("Game", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove | ImGuiWindowFlags.NoTitleBar | ImGuiWindowFlags.NoBackground);
             ImGui.SetWindowPos(new Vector2(300, 0));
             ImGui.SetWindowSize(new Vector2(gameWindowWidth, gameWindowHeight));
 
@@ -285,18 +285,6 @@ public static class Program {
             ));
             var imgPtr = ImGuiRenderer.GetOrCreateImGuiBinding(GraphicsDevice.ResourceFactory, Texture);
             ImGui.Image(imgPtr, new Vector2(imageWidth, imageHeight));
-
-            ImGui.Begin("Debug Info", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
-            ImGui.SetWindowPos(new Vector2(gameWindowWidth + 300, 0));
-            ImGui.SetWindowSize(new Vector2(300, gameWindowHeight + 180));
-
-            EmuCore.DrawDebugInfo();
-
-            ImGui.Begin("Instruction Log", ImGuiWindowFlags.NoResize | ImGuiWindowFlags.NoCollapse | ImGuiWindowFlags.NoMove);
-            ImGui.SetWindowPos(new Vector2(0, gameWindowHeight));
-            ImGui.SetWindowSize(new Vector2(gameWindowWidth + 300, 180));
-
-            EmuCore.DrawInstructionLog();
         }
 
         CommandList.Begin();

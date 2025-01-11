@@ -46,9 +46,5 @@
         public void HandleButtonDown(SDL_GameControllerButton button) {}
         
         public void HandleButtonUp(SDL_GameControllerButton button) {}
-
-        public void DrawDebugInfo() {}
-
-        public void DrawInstructionLog() {}
     }
 }
