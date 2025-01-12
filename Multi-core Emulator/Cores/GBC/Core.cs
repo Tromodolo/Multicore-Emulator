@@ -15,13 +15,14 @@
             board = new Board(fileName, bytes);
         }
 
-        public void ClockSamples(int numAudioSamples, ref GraphicsDevice gd, ref Texture tex) {
+        //, ref GraphicsDevice gd, ref Texture tex
+        public void ClockSamples(int numAudioSamples, ref uint[] frameBuffer, ref bool frameDrawn) {
             // for (int i = 0; i < numAudioSamples; i++) {
             for (int i = 0; i < 70224; i++) {
                 board.Clock();
             }
             // }
-            board.Draw(ref gd, ref tex);
+            // board.Draw(ref gd, ref tex);
         }
         
         public void Reset() {}

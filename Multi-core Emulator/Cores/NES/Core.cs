@@ -44,7 +44,8 @@ namespace MultiCoreEmulator.Cores.NES {
             Bus.Reset();
         }
 
-        public void ClockSamples(int numAudioSamples, ref GraphicsDevice gd, ref Texture tex) {
+        //, ref GraphicsDevice gd, ref Texture tex
+        public void ClockSamples(int numAudioSamples, ref uint[] frameBuffer, ref bool frameDrawn) {
             while (Bus.SamplesCollected < numAudioSamples) {
                 if (isSaveStateHappening) {
                     InternalSaveState(stateSlot);
@@ -64,8 +65,9 @@ namespace MultiCoreEmulator.Cores.NES {
                 }
                 
                 if (Bus.PendingFrame) {
-                    PPU.DrawFrame(ref gd, ref tex);
-                    Bus.PendingFrame = false;  
+                    PPU.GetFrameBuffer(out frameBuffer);
+                    Bus.PendingFrame = false;
+                    frameDrawn = true;
                 }
             }
 

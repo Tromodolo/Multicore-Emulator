@@ -4,7 +4,8 @@
         public int WindowHeight { get; }
 
         public void LoadBytes(string fileName, byte[] bytes);
-        public void ClockSamples(int numAudioSamples, ref GraphicsDevice gd, ref Texture tex);
+        // , ref GraphicsDevice gd, ref Texture tex
+        public void ClockSamples(int numAudioSamples, ref uint[] frameBuffer, ref bool frameDrawn);
         public void Reset();
         public short[] GetSamples(int numAudioSamples);
         public void SaveState(int slot);

@@ -907,20 +907,9 @@ namespace NesEmu.PPU {
             renderBackground = (maskRegister & (1 << 3)) > 0;
             renderSprites = (maskRegister & (1 << 4)) > 0;
         }
-        
-        public void DrawFrame(ref GraphicsDevice gd, ref Texture tex) {
-            gd.UpdateTexture(
-                tex,
-                frameBuffer,
-                0,
-                0,
-                0,
-                SCREEN_WIDTH,
-                SCREEN_HEIGHT - SCREEN_OFFSET_TOP - SCREEN_OFFSET_BOTTOM,
-                1,
-                0,
-                0
-            );
+
+        public void GetFrameBuffer(out uint[] bufferOut) {
+            bufferOut = frameBuffer;
         }
     }
 }

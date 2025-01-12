@@ -75,8 +75,9 @@ namespace MultiCoreEmulator.Cores.GBC {
             MasterClock++;
         }
 
-        public void Draw(ref GraphicsDevice gd, ref Texture tex) {
-            Display.Draw(ref gd, ref tex);
+        //ref GraphicsDevice gd, ref Texture tex
+        public void Draw() {
+            // Display.Draw(ref gd, ref tex);
         }
 
         public byte Read(ushort address) {

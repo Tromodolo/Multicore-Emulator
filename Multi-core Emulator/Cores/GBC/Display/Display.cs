@@ -423,18 +423,19 @@ internal class Display {
 		}
 	}
 
-	public void Draw(ref GraphicsDevice gd, ref Texture tex) {
-		gd.UpdateTexture(
-			tex,
-			frameBuffer,
-			0,
-			0,
-			0,
-			SCREEN_WIDTH,
-			SCREEN_HEIGHT,
-			1,
-			0,
-			0
-		);
+	// ref GraphicsDevice gd, ref Texture tex
+	public void Draw() {
+		// gd.UpdateTexture(
+		// 	tex,
+		// 	frameBuffer,
+		// 	0,
+		// 	0,
+		// 	0,
+		// 	SCREEN_WIDTH,
+		// 	SCREEN_HEIGHT,
+		// 	1,
+		// 	0,
+		// 	0
+		// );
 	}
 }
