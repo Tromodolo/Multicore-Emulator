@@ -41,8 +41,13 @@ namespace MultiCoreEmulator
         int width;
         int height;
 
-        public Window() : base(GameWindowSettings.Default, new NativeWindowSettings(){ Size = new OpenTK.Mathematics.Vector2i(1600, 900), APIVersion = new Version(3, 3) })
-        { }
+        public Window() : base(GameWindowSettings.Default, new NativeWindowSettings() {
+            Size = new OpenTK.Mathematics.Vector2i(1600, 900),
+            APIVersion = new Version(3, 3)
+        }) {
+            KeyDown += OnKeyDown;
+            KeyUp += OnKeyUp;
+        }
 
         public void ClearTexture() {
             GL.DeleteTexture(textureID);
@@ -116,10 +121,6 @@ namespace MultiCoreEmulator
         {
             base.OnRenderFrame(e);
 
-            while (SDL_PollEvent(out var ev) == 1) {
-                ProcessSDLEvent(ev);
-            }
-
             if (EmuCore != null && shouldUpdateTexture) {
                 UpdateTexture(frameBuffer, EmuCore.WindowWidth, EmuCore.WindowHeight);
                 shouldUpdateTexture = false;
@@ -146,7 +147,6 @@ namespace MultiCoreEmulator
         {
             base.OnTextInput(e);
 
-
             _controller.PressChar((char)e.Unicode);
         }
 
@@ -157,25 +157,21 @@ namespace MultiCoreEmulator
             _controller.MouseScroll(e.Offset);
         }
 
+        private void OnKeyUp(KeyboardKeyEventArgs obj) {
+            EmuCore?.HandleKeyUp(obj);
+        }
+        private void OnKeyDown(KeyboardKeyEventArgs obj) {
+            EmuCore?.HandleKeyDown(obj);
+        }
+
         private void InitSDL() {
             AudioDevices = new List<string>();
             Controllers = new List<string>();
 
-            SDL_SetHint(SDL_HINT_GAMECONTROLLER_USE_BUTTON_LABELS, "0");
-            SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "nearest");
-            if (SDL_Init(SDL_INIT_AUDIO | SDL_INIT_GAMECONTROLLER) < 0) {
+            if (SDL_Init(SDL_INIT_AUDIO) < 0) {
                 Console.WriteLine($"There was an issue initializing  {SDL_GetError()}");
                 return;
-            }
-
-            // Register first found controller and audio device
-            for (var i = 0; i < SDL_NumJoysticks(); i++) {
-                if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
-                    continue;
-                }
-                ActiveController = SDL_GameControllerOpen(i);
-                break;
             }
 
             SDLAudioSpec.channels = 1;
@@ -190,27 +186,6 @@ namespace MultiCoreEmulator
                 return;
             }
         }
-
-        private static void ProcessSDLEvent(SDL_Event ev) {
-                switch (ev.type) {
-                    case SDL_EventType.SDL_KEYDOWN: {
-                        EmuCore?.HandleKeyDown(ev.key);
-                        break;
-                    }
-                    case SDL_EventType.SDL_KEYUP: {
-                        EmuCore?.HandleKeyUp(ev.key);
-                        break;
-                    }
-                    case SDL_EventType.SDL_CONTROLLERBUTTONDOWN: {
-                        EmuCore?.HandleButtonDown((SDL_GameControllerButton)ev.cbutton.button);
-                        break;
-                    }
-                    case SDL_EventType.SDL_CONTROLLERBUTTONUP: {
-                        EmuCore?.HandleButtonUp((SDL_GameControllerButton)ev.cbutton.button);
-                        break;
-                    }
-                }
-            }
 
         private void DrawImGui(float deltaSeconds) {
             var viewport = ImGui.GetWindowViewport();
@@ -256,13 +231,13 @@ namespace MultiCoreEmulator
                 }
             }
 
-            Controllers.Clear();
-            for (var i = 0; i < SDL_NumJoysticks(); i++) {
-                if (SDL_IsGameController(i) != SDL_bool.SDL_TRUE) {
-                    continue;
-                }
-                Controllers.Add(SDL_JoystickNameForIndex(i));
-            }
+            // TODO: Re-add controller support
+            // Controllers.Clear();
+            // for (var i = 0; i < JoystickStates.Count; i++) {
+            //     // Only support gamepads with dpad
+            //     if (JoystickStates[i]?.HatCount > 0)
+            //         Controllers.Add(JoystickStates[i].Name);
+            // }
 
             ImGui.NewLine();
             ImGui.Text("Controllers");

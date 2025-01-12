@@ -1,4 +1,6 @@
-﻿namespace MultiCoreEmulator.Cores {
+﻿using OpenTK.Windowing.Common;
+
+namespace MultiCoreEmulator.Cores {
     public interface EmulatorCoreBase {
         public int WindowWidth { get; }
         public int WindowHeight { get; }
@@ -11,10 +13,10 @@
         public void SaveState(int slot);
         public void LoadState(int slot);
 
-        public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent);
-        public void HandleKeyUp(SDL_KeyboardEvent keyboardEvent);
-
-        public void HandleButtonDown(SDL_GameControllerButton button);
-        public void HandleButtonUp(SDL_GameControllerButton button);
+        public void HandleKeyDown(KeyboardKeyEventArgs keyboardEvent);
+        public void HandleKeyUp(KeyboardKeyEventArgs keyboardEvent);
+        //
+        // public void HandleButtonDown(KeyboardKeyEventArgs button);
+        // public void HandleButtonUp(KeyboardKeyEventArgs button);
     }
 }

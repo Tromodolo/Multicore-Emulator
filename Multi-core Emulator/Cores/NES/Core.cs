@@ -3,6 +3,8 @@ using NesEmu.Bus;
 using NesEmu.CPU;
 using NesEmu.PPU;
 using NesEmu.Rom;
+using OpenTK.Windowing.Common;
+using OpenTK.Windowing.GraphicsLibraryFramework;
 using static NesEmu.PPU.PPU;
 
 namespace MultiCoreEmulator.Cores.NES {
@@ -127,38 +129,38 @@ namespace MultiCoreEmulator.Cores.NES {
             fileStream.Close();
         }
 
-        public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {
+        public void HandleKeyDown(KeyboardKeyEventArgs keyboardEvent) {
             byte currentKeys = Bus.GetAllButtonState();
 
-            switch (keyboardEvent.keysym.sym) {
-                case SDL_Keycode.SDLK_r:
+            switch (keyboardEvent.Key) {
+                case Keys.R:
                     Reset();
                     break;
-                case SDL_Keycode.SDLK_j:
+                case Keys.J:
                     currentKeys |= 0b10000000;
                     break;
-                case SDL_Keycode.SDLK_k:
+                case Keys.K:
                     currentKeys |= 0b01000000;
                     break;
-                case SDL_Keycode.SDLK_RSHIFT:
+                case Keys.RightShift:
                     currentKeys |= 0b00100000;
                     break;
-                case SDL_Keycode.SDLK_RETURN:
+                case Keys.Enter:
                     currentKeys |= 0b00010000;
                     break;
-                case SDL_Keycode.SDLK_w:
+                case Keys.W:
                     currentKeys |= 0b00001000;
                     break;
-                case SDL_Keycode.SDLK_s:
+                case Keys.S:
                     currentKeys |= 0b00000100;
                     break;
-                case SDL_Keycode.SDLK_a:
+                case Keys.A:
                     currentKeys |= 0b00000010;
                     break;
-                case SDL_Keycode.SDLK_d:
+                case Keys.D:
                     currentKeys |= 0b00000001;
                     break;
-                case SDL_Keycode.SDLK_TAB:
+                case Keys.Tab:
                     isFastForward = true;
                     break;
             }
@@ -166,35 +168,35 @@ namespace MultiCoreEmulator.Cores.NES {
             Bus.UpdateControllerState(currentKeys);
         }
 
-        public void HandleKeyUp(SDL_KeyboardEvent keyboardEvent) {
+        public void HandleKeyUp(KeyboardKeyEventArgs keyboardEvent) {
             byte currentKeys = Bus.GetAllButtonState();
 
-            switch (keyboardEvent.keysym.sym) {
-                case SDL_Keycode.SDLK_j:
+            switch (keyboardEvent.Key) {
+                case Keys.J:
                     currentKeys &= 0b01111111;
                     break;
-                case SDL_Keycode.SDLK_k:
+                case Keys.K:
                     currentKeys &= 0b10111111;
                     break;
-                case SDL_Keycode.SDLK_RSHIFT:
+                case Keys.RightShift:
                     currentKeys &= 0b11011111;
                     break;
-                case SDL_Keycode.SDLK_RETURN:
+                case Keys.Enter:
                     currentKeys &= 0b11101111;
                     break;
-                case SDL_Keycode.SDLK_w:
+                case Keys.W:
                     currentKeys &= 0b11110111;
                     break;
-                case SDL_Keycode.SDLK_s:
+                case Keys.S:
                     currentKeys &= 0b11111011;
                     break;
-                case SDL_Keycode.SDLK_a:
+                case Keys.A:
                     currentKeys &= 0b11111101;
                     break;
-                case SDL_Keycode.SDLK_d:
+                case Keys.D:
                     currentKeys &= 0b11111110;
                     break;
-                case SDL_Keycode.SDLK_TAB:
+                case Keys.Tab:
                     isFastForward = false;
                     break;
             }

@@ -1,4 +1,6 @@
-﻿namespace MultiCoreEmulator.Cores.GBC {
+﻿using OpenTK.Windowing.Common;
+
+namespace MultiCoreEmulator.Cores.GBC {
     internal class Core : EmulatorCoreBase {
         public const int SCREEN_WIDTH = 160;
         public const int SCREEN_HEIGHT = 144;
@@ -40,12 +42,12 @@
         
         public void LoadState(int slot) {}
         
-        public void HandleKeyDown(SDL_KeyboardEvent keyboardEvent) {}
+        public void HandleKeyDown(KeyboardKeyEventArgs keyboardEvent) {}
         
-        public void HandleKeyUp(SDL_KeyboardEvent keyboardEvent) {}
-        
-        public void HandleButtonDown(SDL_GameControllerButton button) {}
-        
-        public void HandleButtonUp(SDL_GameControllerButton button) {}
+        public void HandleKeyUp(KeyboardKeyEventArgs keyboardEvent) {}
+        //
+        // public void HandleButtonDown(SDL_GameControllerButton button) {}
+        //
+        // public void HandleButtonUp(SDL_GameControllerButton button) {}
     }
 }
