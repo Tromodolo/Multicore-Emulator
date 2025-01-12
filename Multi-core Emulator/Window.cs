@@ -63,6 +63,8 @@ namespace MultiCoreEmulator
             GL.BindTexture(TextureTarget.Texture2D, textureID);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.Nearest);
             GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.Nearest);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
 
             if (!isNewTexture) {
                 GL.TexSubImage2D(TextureTarget.Texture2D,
@@ -258,7 +260,7 @@ namespace MultiCoreEmulator
 
             if (EmuCore != null) {
                 int gameWindowWidth = (EmuCore?.WindowWidth ?? 256) * 3;
-                int gameWindowHeight = (EmuCore?.WindowHeight ?? 256) * 3;
+                int gameWindowHeight = (EmuCore?.WindowHeight ?? 224) * 3;
 
                 ImGui.SetNextWindowSizeConstraints(new Vector2(gameWindowWidth, gameWindowHeight), viewport.Size);
                 ImGui.Begin("Game", ImGuiWindowFlags.None);

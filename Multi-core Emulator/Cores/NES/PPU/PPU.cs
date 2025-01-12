@@ -602,7 +602,7 @@ namespace NesEmu.PPU {
             var pixelX = dotsDrawn - 1;
             var pixelY = currentScanline;
 
-            if (pixelX >= 0 && pixelX < SCREEN_WIDTH && pixelY >= SCREEN_OFFSET_TOP && pixelY < (SCREEN_HEIGHT - SCREEN_OFFSET_TOP)) {
+            if (pixelX >= 0 && pixelX < SCREEN_WIDTH && pixelY >= SCREEN_OFFSET_TOP && pixelY < (SCREEN_HEIGHT - SCREEN_OFFSET_BOTTOM)) {
                 pixelY -= SCREEN_OFFSET_TOP;
                 
                 frameBuffer[
