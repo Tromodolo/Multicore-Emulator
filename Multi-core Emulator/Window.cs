@@ -212,7 +212,7 @@ namespace MultiCoreEmulator
             ImGui.NewLine();
             ImGui.Text("Audio devices");
             ImGui.PushItemWidth(-1);
-            if (ImGui.ListBox("Audio devices", ref SelectedAudioDevice, AudioDevices.ToArray(), AudioDevices.Count, 5)) {
+            if (ImGui.ListBox("##audiodevices", ref SelectedAudioDevice, AudioDevices.ToArray(), AudioDevices.Count, 5)) {
                 SDL_PauseAudioDevice((uint)AudioDeviceId, 1);
                 SDL_CloseAudioDevice((uint)AudioDeviceId);
 
@@ -239,13 +239,13 @@ namespace MultiCoreEmulator
             //         Controllers.Add(JoystickStates[i].Name);
             // }
 
-            ImGui.NewLine();
-            ImGui.Text("Controllers");
-            ImGui.PushItemWidth(-1);
-            if (ImGui.ListBox("Controllers", ref SelectedController, Controllers.ToArray(), Controllers.Count, 5)) {
-                SDL_GameControllerClose(ActiveController);
-                SDL_GameControllerOpen(SelectedController);
-            }
+            // ImGui.NewLine();
+            // ImGui.Text("Controllers");
+            // ImGui.PushItemWidth(-1);
+            // if (ImGui.ListBox("Controllers", ref SelectedController, Controllers.ToArray(), Controllers.Count, 5)) {
+            //     SDL_GameControllerClose(ActiveController);
+            //     SDL_GameControllerOpen(SelectedController);
+            // }
 
             if (ImGuiUtils.SaveStates(out var isSave, out var slot)) {
                 if (isSave) {

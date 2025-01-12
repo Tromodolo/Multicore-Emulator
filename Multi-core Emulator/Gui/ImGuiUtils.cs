@@ -14,13 +14,22 @@ public static class ImGuiUtils {
 		ImGui.Text("Select file");
 
 		var drives = DriveInfo.GetDrives();
+		var charactersDrawn = 0;
 		foreach (var drive in drives) {
-			if (ImGui.Button(drive.RootDirectory.FullName)) {
-				CurrentFilePickerDirectory = drive.RootDirectory.FullName;
-				CurrentOptions.Clear();
-				return false;
+			// Should filter out all kinds of strange root directories in linux
+			if (drive.DriveType is DriveType.Fixed or DriveType.Network or DriveType.Removable && drive.TotalSize > 0) {
+				if (ImGui.Button(drive.RootDirectory.FullName)) {
+					CurrentFilePickerDirectory = drive.RootDirectory.FullName;
+					CurrentOptions.Clear();
+					return false;
+				}
+
+				charactersDrawn += drive.RootDirectory.FullName.Length;
+				if (charactersDrawn >= 20)
+					charactersDrawn = 0;
+				else
+					ImGui.SameLine();
 			}
-			ImGui.SameLine();
 		}
 
 		if (CurrentOptions.Count == 0) {
@@ -45,7 +54,7 @@ public static class ImGuiUtils {
 
 		ImGui.NewLine();
 		ImGui.PushItemWidth(-1);
-		if (!ImGui.ListBox("File picker", ref CurrentSelectedFile, CurrentOptions.ToArray(), CurrentOptions.Count, 12)) {
+		if (!ImGui.ListBox("##filepicker", ref CurrentSelectedFile, CurrentOptions.ToArray(), CurrentOptions.Count, 12)) {
 			return false;
 		}
 
